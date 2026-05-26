@@ -1,0 +1,48 @@
+{
+  "name": "lo-launcher",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "",
+  "main": "dist/app/index.js",
+  "scripts": {
+    "dev:ui": "vite",
+    "dev:electron": "pnpm build:electron && electron .",
+    "build:ui": "vite build",
+    "build:electron": "tsc -p tsconfig.app.json && tsc -p tsconfig.preload.json",
+    "build": "pnpm build:ui && pnpm build:electron",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "dependencies": {
+    "pinia": "^3.0.4",
+    "vue": "^3.5.34"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.0",
+    "@tsconfig/node22": "^22.0.5",
+    "@types/node": "^25.9.1",
+    "@vitejs/plugin-vue": "^6.0.7",
+    "@vue/eslint-config-typescript": "^14.7.0",
+    "@vue/tsconfig": "^0.9.1",
+    "daisyui": "^5.5.20",
+    "electron": "^42.2.0",
+    "electron-builder": "^26.8.1",
+    "eslint": "^10.4.0",
+    "eslint-plugin-vue": "^10.9.1",
+    "jiti": "^2.7.0",
+    "tailwindcss": "^4.3.0",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.14",
+    "vue-tsc": "^3.3.2"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "packageManager": "pnpm@10.33.4",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "electron",
+      "electron-winstaller"
+    ]
+  }
+}

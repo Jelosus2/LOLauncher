@@ -1,0 +1,13 @@
+{
+  "extends": "@tsconfig/node22",
+  "include": ["src/app/**/*"],
+  "compilerOptions": {
+    "module": "nodenext",
+    "target": "es2023",
+    "rootDir": "src/app",
+    "outDir": "dist/app",
+    "types": ["node", "electron"],
+    "esModuleInterop": true,
+    "skipLibCheck": true
+  }
+}
