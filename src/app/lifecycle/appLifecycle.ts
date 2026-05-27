@@ -1,3 +1,4 @@
+import { markAppAsQuitting } from "./trayManager.js";
 import { app, BrowserWindow, Menu } from "electron";
 
 export type WindowFactory = () => Promise<BrowserWindow>;
@@ -14,6 +15,10 @@ export function registerAppLifecycle(createMainWindow: WindowFactory) {
                 await createMainWindow();
             }
         });
+    });
+
+    app.on("before-quit", () => {
+        markAppAsQuitting();
     });
 
     app.on("window-all-closed", () => {
