@@ -1,13 +1,15 @@
 {
   "extends": "@tsconfig/node22",
-  "include": ["src/app/**/*"],
+  "include": ["src/app/**/*", "src/shared/**/*"],
+  "exclude": ["src/app/preload.ts"],
   "compilerOptions": {
     "module": "nodenext",
     "target": "es2023",
-    "rootDir": "src/app",
-    "outDir": "dist/app",
+    "rootDir": "src",
+    "outDir": "dist",
     "types": ["node", "electron"],
     "esModuleInterop": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "experimentalDecorators": true
   }
 }
