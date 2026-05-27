@@ -37,20 +37,10 @@ button {
 .launcher-shell {
     position: relative;
     width: 100vw;
-    height: 100vh;
+    height: calc(100vh - 34px);
     display: grid;
     grid-template-columns: 292px minmax(0, 1fr);
-    background:
-        linear-gradient(
-            90deg,
-            rgba(12, 10, 8, 0.64) 0%,
-            rgba(12, 10, 8, 0.50) 34%,
-            rgba(12, 10, 8, 0.38) 100%
-        ),
-        url("./launcher/background.webp");
-    background-size: 100% 100%, 122% auto;
-    background-position: center, 100% center;
-    background-repeat: no-repeat, no-repeat;
+    background: transparent;
     overflow: hidden;
 }
 
@@ -96,7 +86,7 @@ button {
 .eyebrow {
     margin: 0 0 8px;
     color: #ffd6a0;
-    font-size: 11px;
+    font-size: 20px;
     font-weight: 800;
     text-transform: uppercase;
 }
@@ -163,6 +153,26 @@ button {
     font-weight: 950;
     text-transform: uppercase;
     box-shadow: 0 16px 34px rgba(255, 122, 46, 0.22);
+}
+
+.sidebar-settings-button {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    border: 1px solid rgba(255, 205, 150, 0.22);
+    background: rgba(12, 10, 8, 0.18);
+    color: #eef8f8;
+    font-size: 13px;
+    font-weight: 800;
+    text-transform: uppercase;
+    text-shadow: 0 1px 12px rgba(0, 0, 0, 0.72);
+}
+
+.sidebar-settings-button:hover {
+    background: rgba(255, 248, 238, 0.10);
+    border-color: rgba(255, 205, 150, 0.38);
 }
 
 .main-action.state-update {
@@ -247,6 +257,27 @@ button {
     overflow: hidden;
     border: 1px solid rgba(255, 205, 150, 0.22);
     background: rgba(8, 10, 11, 0.82);
+}
+
+.carousel-slide-next-enter-active,
+.carousel-slide-next-leave-active,
+.carousel-slide-previous-enter-active,
+.carousel-slide-previous-leave-active {
+    transition:
+        opacity 220ms ease,
+        transform 260ms ease;
+}
+
+.carousel-slide-next-enter-from,
+.carousel-slide-previous-leave-to {
+    opacity: 0;
+    transform: translateX(28px);
+}
+
+.carousel-slide-next-leave-to,
+.carousel-slide-previous-enter-from {
+    opacity: 0;
+    transform: translateX(-28px);
 }
 
 .carousel-state-card {
@@ -369,18 +400,26 @@ button {
     display: grid;
     place-items: center;
     padding: 24px;
-    background: rgba(0, 0, 0, 0.62);
+    background: rgba(0, 0, 0, 0.48);
 }
 
 .modal-panel {
     width: min(560px, 100%);
-    border: 1px solid rgba(255, 205, 150, 0.26);
-    background: rgba(18, 15, 13, 0.98);
+    border: 1px solid rgba(255, 205, 150, 0.38);
+    background: rgba(232, 222, 205, 0.96);
+    color: #171311;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.42);
 }
 
 .modal-panel header {
     padding: 18px 20px;
-    border-bottom: 1px solid rgba(255, 205, 150, 0.16);
+    border-bottom: 1px solid rgba(92, 64, 42, 0.18);
+}
+
+.modal-panel .icon-button {
+    border-color: rgba(92, 64, 42, 0.22);
+    background: rgba(255, 248, 238, 0.62);
+    color: #171311;
 }
 
 .modal-body {
@@ -392,7 +431,7 @@ button {
 .modal-body label {
     display: grid;
     gap: 8px;
-    color: #c4d4d7;
+    color: #3b332d;
     font-size: 13px;
     font-weight: 800;
     text-transform: uppercase;
@@ -402,10 +441,48 @@ button {
 .modal-body input[type="email"],
 .modal-body input[type="password"] {
     height: 42px;
-    border: 1px solid rgba(255, 205, 150, 0.22);
-    background: #0f0d0b;
-    color: #eef8f8;
+    border: 1px solid rgba(92, 64, 42, 0.26);
+    background: rgba(255, 248, 238, 0.76);
+    color: #171311;
     padding: 0 12px;
+}
+
+.modal-body input:disabled {
+    color: #6f6258;
+    background: rgba(255, 248, 238, 0.48);
+    cursor: default;
+}
+
+.path-control {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 44px;
+    gap: 8px;
+}
+
+.folder-button {
+    position: relative;
+    height: 42px;
+    border: 1px solid rgba(92, 64, 42, 0.26);
+    background: rgba(255, 248, 238, 0.76);
+}
+
+.folder-icon {
+    position: absolute;
+    inset: 13px 10px 10px;
+    border: 2px solid #5c402a;
+    border-radius: 2px;
+}
+
+.folder-icon::before {
+    content: "";
+    position: absolute;
+    left: -2px;
+    top: -8px;
+    width: 14px;
+    height: 8px;
+    border: 2px solid #5c402a;
+    border-bottom: 0;
+    border-radius: 2px 2px 0 0;
 }
 
 .check-row {
@@ -415,10 +492,127 @@ button {
     text-transform: none !important;
 }
 
+.settings-group {
+    display: grid;
+    gap: 10px;
+    margin: 0;
+    padding: 14px;
+    border: 1px solid rgba(92, 64, 42, 0.18);
+}
+
+.settings-group legend {
+    padding: 0 6px;
+    color: #3b332d;
+    font-size: 13px;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.radio-row {
+    display: flex !important;
+    align-items: center;
+    flex-direction: row;
+    text-transform: none !important;
+}
+
+.settings-version-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 12px 14px;
+    border: 1px solid rgba(92, 64, 42, 0.18);
+    color: #3b332d;
+    font-size: 13px;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.settings-version-row strong {
+    color: #171311;
+}
+
 .secondary-action {
     min-height: 42px;
-    border: 1px solid rgba(255, 205, 150, 0.24);
-    background: rgba(24, 19, 15, 0.9);
-    color: #eef8f8;
+    border: 1px solid rgba(92, 64, 42, 0.32);
+    background: rgba(255, 147, 69, 0.82);
+    color: #171311;
     font-weight: 800;
+}
+
+.app-frame {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    background:
+        linear-gradient(
+            90deg,
+            rgba(12, 10, 8, 0.64) 0%,
+            rgba(12, 10, 8, 0.50) 34%,
+            rgba(12, 10, 8, 0.38) 100%
+        ),
+        url("./launcher/background.webp");
+    background-size: 100% 100%, 122% auto;
+    background-position: center, 100% center;
+    background-repeat: no-repeat, no-repeat;
+}
+
+.app-titlebar {
+    position: relative;
+    z-index: 2;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-left: 12px;
+    background: linear-gradient(90deg, rgba(12, 10, 8, 0.34), rgba(12, 10, 8, 0.08));
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    color: #eef8f8;
+    backdrop-filter: blur(8px) saturate(108%);
+    -webkit-app-region: drag;
+}
+
+.app-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    text-shadow: 0 1px 10px rgba(0, 0, 0, 0.72);
+}
+
+.app-title-version {
+    color: rgba(238, 248, 248, 0.68);
+    font-size: 12px;
+}
+
+.app-title-icon {
+    width: 18px;
+    height: 18px;
+    background: url("./launcher/icon.webp") center / contain no-repeat;
+    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.56));
+}
+
+.window-actions {
+    display: flex;
+    height: 100%;
+    -webkit-app-region: no-drag;
+}
+
+.window-actions button {
+    width: 42px;
+    height: 100%;
+    border: 0;
+    background: transparent;
+    color: #eef8f8;
+    opacity: 0.86;
+}
+
+.window-actions button:hover {
+    background: rgba(255, 255, 255, 0.10);
+    opacity: 1;
+}
+
+.window-actions button:last-child:hover {
+    background: #c42b1c;
 }

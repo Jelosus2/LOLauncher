@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import LauncherShell from "./components/LauncherShell.vue";
 import ActionModal from "./components/ActionModal.vue";
+import { useLauncherStore } from "./stores/launcherStore";
 
 type LauncherState = "install" | "ready" | "update";
 type ModalKind = "settings" | "login" | null;
 
 const launcherState = ref<LauncherState>("ready");
 const activeModal = ref<ModalKind>(null);
+const launcherStore = useLauncherStore();
 
 const mainActionLabel = computed(() => {
     if (launcherState.value === "install") return "Install";
@@ -18,6 +20,10 @@ const mainActionLabel = computed(() => {
 function handleMainAction() {
     console.log(`Main action: ${mainActionLabel.value}`);
 }
+
+onMounted(() => {
+    void launcherStore.loadLauncherVersion();
+});
 </script>
 
 <template>

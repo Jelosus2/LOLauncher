@@ -1,8 +1,4 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
-
-const launcherVersion = ref("");
-
 defineProps<{
     launcherState: "install" | "ready" | "update";
     mainActionLabel: string;
@@ -10,11 +6,8 @@ defineProps<{
 
 defineEmits<{
     mainAction: [];
+    openSettings: [];
 }>();
-
-onMounted(async () => {
-    launcherVersion.value = await window.app.getLauncherVersion();
-});
 </script>
 
 <template>
@@ -29,15 +22,9 @@ onMounted(async () => {
             {{ mainActionLabel }}
         </button>
 
-        <div class="version-stack">
-            <div>
-                <span>Game</span>
-                <strong>Not detected</strong>
-            </div>
-            <div>
-                <span>Launcher</span>
-                <strong>{{ launcherVersion || "Unknown" }}</strong>
-            </div>
-        </div>
+        <button class="sidebar-settings-button" @click="$emit('openSettings')">
+            <span style="font-size: 20px;">&#9881;</span>
+            <span>Game Settings</span>
+        </button>
     </aside>
 </template>

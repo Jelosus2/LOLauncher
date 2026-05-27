@@ -9,9 +9,11 @@ export async function createMainWindow() {
         autoHideMenuBar: true,
         width: appConfig.mainWindow.width,
         height: appConfig.mainWindow.height,
-        minWidth: appConfig.mainWindow.minWidth,
-        minHeight: appConfig.mainWindow.minHeight,
         backgroundColor: appConfig.mainWindow.backgroundColor,
+        resizable: false,
+        maximizable: false,
+        fullscreenable: false,
+        frame: false,
         show: false,
         webPreferences: {
             preload: getPreloadPath(),

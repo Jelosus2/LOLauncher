@@ -6,8 +6,6 @@ export const appConfig = {
     mainWindow: {
         width: 1275,
         height: 660,
-        minWidth: 960,
-        minHeight: 560,
         backgroundColor: "#070d0f"
     }
 } as const;

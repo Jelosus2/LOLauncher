@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import { useLauncherStore } from "../stores/launcherStore";
 
 const props = defineProps<{
     kind: "settings" | "login";
@@ -9,6 +10,7 @@ defineEmits<{
     close: [];
 }>();
 
+const launcherStore = useLauncherStore();
 const title = computed(() => props.kind === "settings" ? "Game Settings" : "VFUN Login");
 </script>
 
@@ -17,24 +19,47 @@ const title = computed(() => props.kind === "settings" ? "Game Settings" : "VFUN
         <section class="modal-panel">
             <header>
                 <h2>{{ title }}</h2>
-                <button class="icon-button" title="Close" @click="$emit('close')">×</button>
+                <button class="icon-button" title="Close" @click="$emit('close')">&times;</button>
             </header>
 
             <div v-if="kind === 'settings'" class="modal-body">
-                <label>
-                    Game directory
-                    <input type="text" placeholder="Select Last Origin R+ install folder" />
+                <label class="settings-field">
+                    <span>Game directory</span>
+                    <div class="path-control">
+                        <input
+                            type="text"
+                            placeholder="Last Origin R+ install folder not set"
+                            disabled
+                        />
+                        <button class="folder-button" title="Open game folder">
+                            <span class="folder-icon" aria-hidden="true"></span>
+                        </button>
+                    </div>
                 </label>
 
-                <label>
-                    Launch arguments
-                    <input type="text" placeholder="Optional command line arguments" />
-                </label>
+                <fieldset class="settings-group">
+                    <legend>Close settings</legend>
 
-                <label class="check-row">
-                    <input type="checkbox" />
-                    Close launcher after game starts
-                </label>
+                    <label class="radio-row">
+                        <input type="radio" name="close-action" value="tray" checked />
+                        Minimize to system tray
+                    </label>
+
+                    <label class="radio-row">
+                        <input type="radio" name="close-action" value="quit" />
+                        Quit
+                    </label>
+
+                    <label class="check-row">
+                        <input type="checkbox" />
+                        Close launcher after game starts
+                    </label>
+                </fieldset>
+
+                <div class="settings-version-row">
+                    <span>Launcher version</span>
+                    <strong>{{ launcherStore.launcherVersion || "Unknown" }}</strong>
+                </div>
 
                 <button class="secondary-action">Check Launcher Updates</button>
             </div>
