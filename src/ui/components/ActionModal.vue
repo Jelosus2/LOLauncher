@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useLauncherStore } from "../stores/launcherStore";
+import { useSettingsStore } from "../stores/settingsStore";
 
 const props = defineProps<{
     kind: "settings" | "login";
@@ -11,6 +12,7 @@ defineEmits<{
 }>();
 
 const launcherStore = useLauncherStore();
+const settingsStore = useSettingsStore();
 const title = computed(() => props.kind === "settings" ? "Game Settings" : "VFUN Login");
 </script>
 
@@ -28,7 +30,7 @@ const title = computed(() => props.kind === "settings" ? "Game Settings" : "VFUN
                     <div class="path-control">
                         <input
                             type="text"
-                            placeholder="Last Origin R+ install folder not set"
+                            placeholder="Last Origin R+ not installed"
                             disabled
                         />
                         <button class="folder-button" title="Open game folder">
@@ -41,17 +43,36 @@ const title = computed(() => props.kind === "settings" ? "Game Settings" : "VFUN
                     <legend>Close settings</legend>
 
                     <label class="radio-row">
-                        <input type="radio" name="close-action" value="tray" checked />
+                        <input
+                            type="radio"
+                            name="close-action"
+                            value="tray"
+                            :checked="settingsStore.settings.closeAction === 'tray'"
+                            @change="settingsStore.updateSetting('closeAction', 'tray')"
+                        />
                         Minimize to system tray
                     </label>
 
                     <label class="radio-row">
-                        <input type="radio" name="close-action" value="quit" />
+                        <input
+                            type="radio"
+                            name="close-action"
+                            value="quit"
+                            :checked="settingsStore.settings.closeAction === 'quit'"
+                            @change="settingsStore.updateSetting('closeAction', 'quit')"
+                        />
                         Quit
                     </label>
 
                     <label class="check-row">
-                        <input type="checkbox" />
+                        <input
+                            type="checkbox"
+                            :checked="settingsStore.settings.closeAfterGameStarts"
+                            @change="settingsStore.updateSetting(
+                                'closeAfterGameStarts',
+                                ($event.target as HTMLInputElement).checked
+                            )"
+                        />
                         Close launcher after game starts
                     </label>
                 </fieldset>

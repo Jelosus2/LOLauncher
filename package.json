@@ -9,7 +9,7 @@
     "dev:ui": "vite",
     "dev:electron": "pnpm build:electron && electron .",
     "build:ui": "vite build",
-    "build:electron": "tsc -p tsconfig.app.json && tsc -p tsconfig.preload.json",
+    "build:electron": "tsc -p tsconfig.preload.json && tsc -p tsconfig.app.json",
     "build": "pnpm build:ui && pnpm build:electron",
     "postinstall": "electron-builder install-app-deps"
   },

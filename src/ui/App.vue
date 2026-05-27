@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from "vue";
 import LauncherShell from "./components/LauncherShell.vue";
 import ActionModal from "./components/ActionModal.vue";
 import { useLauncherStore } from "./stores/launcherStore";
+import { useSettingsStore } from "./stores/settingsStore.ts";
 
 type LauncherState = "install" | "ready" | "update";
 type ModalKind = "settings" | "login" | null;
@@ -10,6 +11,7 @@ type ModalKind = "settings" | "login" | null;
 const launcherState = ref<LauncherState>("ready");
 const activeModal = ref<ModalKind>(null);
 const launcherStore = useLauncherStore();
+const settingsStore = useSettingsStore();
 
 const mainActionLabel = computed(() => {
     if (launcherState.value === "install") return "Install";
@@ -23,6 +25,7 @@ function handleMainAction() {
 
 onMounted(() => {
     void launcherStore.loadLauncherVersion();
+    void settingsStore.loadSettings();
 });
 </script>
 
