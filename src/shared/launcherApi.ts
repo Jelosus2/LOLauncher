@@ -10,6 +10,7 @@ export type OpenPathResult = {
 export type LauncherApi = {
     getLauncherVersion: () => Promise<string>;
     getGameNews: () => Promise<GameNewsItem[]>;
+    openExternalUrl: (url: string) => Promise<void>;
     getSettings: () => Promise<LauncherSettings>;
     updateSettings: (settings: Partial<LauncherSettings>) => Promise<LauncherSettings>;
     getGameInstallPath: () => Promise<string | null>;

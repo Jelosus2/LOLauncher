@@ -259,6 +259,10 @@ button {
     background: rgba(8, 10, 11, 0.82);
 }
 
+.carousel-card.clickable {
+    cursor: pointer;
+}
+
 .carousel-slide-next-enter-active,
 .carousel-slide-next-leave-active,
 .carousel-slide-previous-enter-active,

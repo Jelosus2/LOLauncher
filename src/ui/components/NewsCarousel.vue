@@ -82,6 +82,10 @@ function stopAutoplay() {
     autoplayTimer = undefined;
 }
 
+function openNews(url: string) {
+    window.app.openExternalUrl(url);
+}
+
 onMounted(async () => {
     await loadNews();
     startAutoplay();
@@ -101,7 +105,12 @@ onBeforeUnmount(() => {
         </div>
 
         <Transition :name="transitionName" mode="out-in">
-            <article v-if="activeItem" :key="activeIndex" class="carousel-card">
+            <article
+                v-if="activeItem"
+                :key="activeIndex"
+                class="carousel-card clickable"
+                @click="openNews(activeItem.url)"
+            >
                 <div class="carousel-image-wrap">
                     <img :src="activeItem.image" :alt="activeItem.title" class="carousel-image" />
 
@@ -109,7 +118,7 @@ onBeforeUnmount(() => {
                         class="carousel-arrow left"
                         title="Previous news"
                         :disabled="!hasMultipleNews"
-                        @click="previousNews()"
+                        @click.stop="previousNews()"
                     >
                         &#8249;
                     </button>
@@ -117,7 +126,7 @@ onBeforeUnmount(() => {
                         class="carousel-arrow right"
                         title="Next news"
                         :disabled="!hasMultipleNews"
-                        @click="nextNews()"
+                        @click.stop="nextNews()"
                     >
                         &#8250;
                     </button>

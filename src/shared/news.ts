@@ -3,4 +3,5 @@ export type GameNewsItem = {
     kind: string;
     date: string;
     image: string;
+    url: string;
 };

@@ -5,6 +5,7 @@ import { contextBridge, ipcRenderer } from "electron";
 const launcherApi: LauncherApi = {
     getLauncherVersion: () => ipcRenderer.invoke("launcher:get-version"),
     getGameNews: () => ipcRenderer.invoke("launcher:get-news"),
+    openExternalUrl: (url) => ipcRenderer.invoke("launcher:open-external", url),
     getSettings: () => ipcRenderer.invoke("settings:get"),
     updateSettings: (settings) => ipcRenderer.invoke("settings:update", settings),
     getGameInstallPath: () => ipcRenderer.invoke("game:get-install-path"),

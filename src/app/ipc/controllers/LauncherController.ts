@@ -1,7 +1,7 @@
 import type { GameNewsItem } from "../../../shared/news.js";
 
+import { app, shell, type IpcMainInvokeEvent } from "electron";
 import { IpcHandle } from "../ipcDecorators.js";
-import { app } from "electron";
 
 type NewsPost = {
     id: number;
@@ -51,11 +51,22 @@ export class LauncherController {
                 title: post.title,
                 kind: post.category.name,
                 date: this.formatDate(post.created_at),
-                image: post.thumbnail
+                image: post.thumbnail,
+                url: post.url
             });
         }
 
         return news;
+    }
+
+    @IpcHandle("launcher:open-external")
+    async openExternal(_event: IpcMainInvokeEvent, url: string) {
+        const parsedUrl = new URL(url);
+
+        if (!["https:", "http:"].includes(parsedUrl.protocol))
+            throw new Error(`Blocked unsupported URL protocol: ${parsedUrl.protocol}`);
+
+        await shell.openExternal(parsedUrl.toString());
     }
 
     formatDate(date: string) {
