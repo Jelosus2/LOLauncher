@@ -1,3 +1,4 @@
+import { serializeError, writeLog } from "../logging/logger.js";
 import { ipcMain, type IpcMainInvokeEvent } from "electron";
 
 type IpcHandler = (event: IpcMainInvokeEvent, ...args: unknown[]) => unknown | Promise<unknown>;
@@ -30,7 +31,21 @@ export function registerIpcController(controller: object) {
         if (typeof handler !== "function")
             throw new Error(`Invalid IPC handler: ${String(route.methodName)}`);
 
-        ipcMain.handle(route.channel, (handler as IpcHandler).bind(controller));
+        ipcMain.handle(route.channel, async (event, ...args) => {
+            try {
+                return await (handler as IpcHandler).call(controller, event, ...args);
+            } catch (error) {
+                await writeLog({
+                    level: "error",
+                    message: `IPC handler failed: ${route.channel}`,
+                    context: `ipc:${route.channel}`,
+                    details: serializeError(error)
+                });
+
+                throw error;
+            }
+        });
+
         registeredChannels.add(route.channel);
     }
 }

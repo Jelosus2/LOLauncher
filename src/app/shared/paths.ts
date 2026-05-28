@@ -15,3 +15,8 @@ export function getRendererHtmlPath() {
 export function getSettingsPath() {
     return path.join(app.getPath("userData"), "settings.json");
 }
+
+export function getLogPath() {
+    const today = new Date().toISOString().slice(0, 10);
+    return path.join(app.getPath("userData"), "logs", `launcher_${today}.log`);
+}

@@ -2,6 +2,7 @@ import { app, BrowserWindow } from "electron";
 
 import { createOrShowTray, markAppAsQuitting, shouldQuitApp } from "../lifecycle/trayManager.js";
 import { getPreloadPath, getRendererHtmlPath } from "../shared/paths.js";
+import { serializeError, writeLog } from "../logging/logger.js";
 import { getSettings } from "../config/settingsService.js";
 import { appConfig } from "../config/appConfig.js";
 
@@ -47,14 +48,26 @@ export async function createMainWindow() {
 }
 
 async function handleMainWindowClose(mainWindow: BrowserWindow) {
-    const settings = await getSettings();
+    try {
+        const settings = await getSettings();
 
-    if (settings.closeAction === "tray") {
-        createOrShowTray(mainWindow);
-        mainWindow.hide();
-        return;
+        if (settings.closeAction === "tray") {
+            createOrShowTray(mainWindow);
+            mainWindow.hide();
+            return;
+        }
+
+        markAppAsQuitting();
+        mainWindow.close();
+    } catch (error) {
+        await writeLog({
+            level: "error",
+            message: "Failed to handle main window close.",
+            context: "mainWindow.handleMainWindowClose",
+            details: serializeError(error)
+        });
+
+        markAppAsQuitting();
+        mainWindow.close();
     }
-
-    markAppAsQuitting();
-    mainWindow.close();
 }

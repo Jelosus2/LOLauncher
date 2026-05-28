@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { useLauncherStore } from "../stores/launcherStore";
-import { useSettingsStore } from "../stores/settingsStore";
+import { useLauncherStore } from "@/stores/launcherStore";
+import { useSettingsStore } from "@/stores/settingsStore";
+import { useGameStore } from "@/stores/gameStore";
 
 const props = defineProps<{
     kind: "settings" | "login";
@@ -13,6 +14,7 @@ defineEmits<{
 
 const launcherStore = useLauncherStore();
 const settingsStore = useSettingsStore();
+const gameStore = useGameStore();
 const title = computed(() => props.kind === "settings" ? "Game Settings" : "VFUN Login");
 </script>
 
@@ -30,10 +32,15 @@ const title = computed(() => props.kind === "settings" ? "Game Settings" : "VFUN
                     <div class="path-control">
                         <input
                             type="text"
-                            placeholder="Last Origin R+ not installed"
+                            :value="gameStore.installPath || 'Last Origin R+ not installed'"
                             disabled
                         />
-                        <button class="folder-button" title="Open game folder">
+                        <button
+                            class="folder-button"
+                            title="Open game folder"
+                            :disabled="!gameStore.installPath || gameStore.isOpeningFolder"
+                            @click="gameStore.openInstallFolder"
+                        >
                             <span class="folder-icon" aria-hidden="true"></span>
                         </button>
                     </div>
