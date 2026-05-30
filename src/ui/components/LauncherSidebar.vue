@@ -2,6 +2,7 @@
 defineProps<{
     launcherState: "install" | "ready" | "update";
     mainActionLabel: string;
+    mainActionDisabled?: boolean;
 }>();
 
 defineEmits<{
@@ -17,6 +18,7 @@ defineEmits<{
         <button
             class="main-action"
             :class="`state-${launcherState}`"
+            :disabled="mainActionDisabled"
             @click="$emit('mainAction')"
         >
             {{ mainActionLabel }}

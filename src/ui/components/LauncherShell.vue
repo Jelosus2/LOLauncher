@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { LauncherTaskProgress } from "../../shared/installer";
+
 import LauncherSidebar from "./LauncherSidebar.vue";
 import NewsCarousel from "./NewsCarousel.vue";
 import { useLauncherStore } from "../stores/launcherStore";
@@ -6,6 +8,8 @@ import { useLauncherStore } from "../stores/launcherStore";
 defineProps<{
     launcherState: "install" | "ready" | "update";
     mainActionLabel: string;
+    mainActionDisabled?: boolean;
+    taskProgress: LauncherTaskProgress
 }>();
 
 defineEmits<{
@@ -43,6 +47,7 @@ function close() {
             <LauncherSidebar
                 :launcher-state="launcherState"
                 :main-action-label="mainActionLabel"
+                :main-action-disabled="mainActionDisabled"
                 @main-action="$emit('mainAction')"
                 @open-settings="$emit('openModal', 'settings')"
             />
@@ -60,6 +65,23 @@ function close() {
                 </header>
 
                 <NewsCarousel />
+
+                <div
+                    v-if="taskProgress.step !== 'idle'"
+                    class="launcher-progress"
+                >
+                    <div class="launcher-progress-header">
+                        <span>{{ taskProgress.label }}</span>
+                        <strong>{{ Math.round(taskProgress.percent) }}%</strong>
+                    </div>
+
+                    <div class="launcher-progress-track">
+                        <div
+                            class="launcher-progress-fill"
+                            :style="{ width: `${Math.max(0, Math.min(100, taskProgress.percent))}%` }"
+                        />
+                    </div>
+                </div>
             </section>
         </main>
     </div>

@@ -1,3 +1,5 @@
+import type { LauncherTaskProgress } from "./installer.js";
+import type { MaintenanceStatus } from "./maintenance.js";
 import type { LauncherSettings } from "./settings.js";
 import type { LogPayload } from "./logging.js";
 import type { GameNewsItem } from "./news.js";
@@ -16,6 +18,10 @@ export type LauncherApi = {
     getGameInstallPath: () => Promise<string | null>;
     openGameInstallFolder: () => Promise<OpenPathResult>;
     logMessage: (payload: LogPayload) => Promise<void>;
+    checkMaintenance: () => Promise<MaintenanceStatus>;
+    downloadGameInstaller: () => Promise<string>;
+    executeGameInstaller: (installerPath: string) => Promise<void>;
+    onInstallerProgress: (callback: (progress: LauncherTaskProgress) => void) => () => void;
     minimizeWindow: () => Promise<void>;
     closeWindow: () => Promise<void>;
 };

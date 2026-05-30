@@ -677,3 +677,95 @@ button {
 .notification-card.level-error {
     border-color: rgba(196, 43, 28, 0.52);
 }
+
+.main-action:disabled {
+    cursor: default;
+    opacity: 0.72;
+}
+
+.launcher-progress {
+    position: absolute;
+    left: 6px;
+    right: 20px;
+    bottom: 20px;
+    display: grid;
+    gap: 8px;
+    padding: 10px 12px;
+    background: rgba(12, 10, 8, 0.42);
+    border: 1px solid rgba(255, 205, 150, 0.28);
+    backdrop-filter: blur(8px);
+}
+
+.launcher-progress-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    color: #eef8f8;
+    font-size: 13px;
+    font-weight: 800;
+    text-transform: uppercase;
+    text-shadow: 0 1px 10px rgba(0, 0, 0, 0.72);
+}
+
+.launcher-progress-header strong {
+    color: #ffbd7c;
+}
+
+.launcher-progress-track {
+    height: 8px;
+    overflow: hidden;
+    background: rgba(238, 248, 248, 0.22);
+}
+
+.launcher-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #ffad63, #ff7a2e);
+    transition: width 180ms ease;
+}
+
+.service-status-dialog {
+    width: min(460px, 100%);
+    display: grid;
+    gap: 18px;
+    padding: 0;
+    border: 1px solid rgba(255, 205, 150, 0.38);
+    background: rgba(232, 222, 205, 0.96);
+    color: #171311;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.42);
+}
+
+.service-status-dialog header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px 20px;
+    border-bottom: 1px solid rgba(92, 64, 42, 0.18);
+}
+
+.service-status-dialog h2,
+.service-status-dialog p {
+    margin: 0;
+}
+
+.service-status-dialog h2 {
+    font-size: 18px;
+    font-weight: 900;
+}
+
+.service-status-dialog p {
+    padding: 0 20px;
+    color: #3b332d;
+    line-height: 1.45;
+}
+
+.service-status-dialog .icon-button {
+    border-color: rgba(92, 64, 42, 0.22);
+    background: rgba(255, 248, 238, 0.62);
+    color: #171311;
+}
+
+.service-status-dialog .secondary-action {
+    margin: 0 20px 20px;
+}

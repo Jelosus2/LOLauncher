@@ -20,3 +20,7 @@ export function getLogPath() {
     const today = new Date().toISOString().slice(0, 10);
     return path.join(app.getPath("userData"), "logs", `launcher_${today}.log`);
 }
+
+export function getInstallerDirPath(version: string) {
+    return path.join(app.getPath("userData"), "installers", version);
+}

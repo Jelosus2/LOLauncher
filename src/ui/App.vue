@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
+import ServiceStatusDialog from "./components/ServiceStatusDialog.vue";
 import NotificationHost from "./components/NotificationHost.vue";
 import LauncherShell from "./components/LauncherShell.vue";
 import ActionModal from "./components/ActionModal.vue";
@@ -11,9 +12,15 @@ type LauncherState = "install" | "ready" | "update";
 type ModalKind = "settings" | "login" | null;
 
 const activeModal = ref<ModalKind>(null);
+const serviceDialog = ref<{
+    title: string;
+    message: string;
+} | null>(null);
 const launcherStore = useLauncherStore();
 const settingsStore = useSettingsStore();
 const gameStore = useGameStore();
+
+let unsubscribeInstallerProgress: (() => void) | undefined;
 
 const launcherState = computed<LauncherState>(() => {
     if (!gameStore.isLoaded) return "ready";
@@ -26,14 +33,56 @@ const mainActionLabel = computed(() => {
     return "Start Game";
 });
 
-function handleMainAction() {
-    console.log(`Main action: ${mainActionLabel.value}`);
+async function handleMainAction() {
+    if (gameStore.isRunningTask) return;
+
+    if (launcherState.value === "install") {
+        const status = await gameStore.checkMaintenance();
+        if (status.isRestrictedCountry) {
+            serviceDialog.value = {
+                title: "Service Unavailable",
+                message: status.message
+            };
+            return;
+        }
+
+        void gameStore.downloadAndRunInstaller();
+        return;
+    }
+
+    if (launcherState.value === "ready") {
+        const status = await gameStore.checkMaintenance();
+
+        if (status.isRestrictedCountry) {
+            serviceDialog.value = {
+                title: "Service Unavailable",
+                message: status.message
+            };
+            return;
+        }
+
+        if (status.isMaintenance) {
+            serviceDialog.value = {
+                title: "Game Under Maintenance",
+                message: status.message
+            };
+            return;
+        }
+
+        // launch game later
+    }
 }
 
 onMounted(() => {
     void launcherStore.loadLauncherVersion();
     void settingsStore.loadSettings();
     void gameStore.loadInstallPath();
+
+    unsubscribeInstallerProgress = gameStore.subscribeInstallerProgress();
+});
+
+onUnmounted(() => {
+    unsubscribeInstallerProgress?.();
 });
 </script>
 
@@ -41,6 +90,8 @@ onMounted(() => {
     <LauncherShell
         :launcher-state="launcherState"
         :main-action-label="mainActionLabel"
+        :main-action-disabled="gameStore.isRunningTask"
+        :task-progress="gameStore.taskProgress"
         @main-action="handleMainAction"
         @open-modal="activeModal = $event"
     />
@@ -49,6 +100,13 @@ onMounted(() => {
         v-if="activeModal"
         :kind="activeModal"
         @close="activeModal = null"
+    />
+
+    <ServiceStatusDialog
+        v-if="serviceDialog"
+        :title="serviceDialog.title"
+        :message="serviceDialog.message"
+        @close="serviceDialog = null"
     />
 
     <NotificationHost />

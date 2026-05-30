@@ -19,7 +19,7 @@ export const useNotificationStore = defineStore("notifications", () => {
 
         setTimeout(() => {
             dismiss(item.id);
-        }, 6000);
+        }, 8000);
     }
 
     function dismiss(id: number) {
