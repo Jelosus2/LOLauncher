@@ -1,5 +1,6 @@
 import type { LauncherTaskProgress } from "../../shared/installer";
 import type { MaintenanceStatus } from "../../shared/maintenance";
+import type { PatchVersionInfo } from "../../shared/patch";
 
 import { isStorageError, getCleanErrorMessage } from "@/utils/errors";
 import { reportError } from "@/services/errorReporter";
@@ -20,6 +21,8 @@ export const useGameStore = defineStore("game", () => {
     const isCheckingMaintenance = ref(false);
     const taskProgress = ref<LauncherTaskProgress>({ ...idleProgress });
     const isRunningTask = ref(false);
+    const versionInfo = ref<PatchVersionInfo | null>(null);
+    const isCheckingVersionInfo = ref(false);
 
     async function loadInstallPath() {
         try {
@@ -118,6 +121,23 @@ export const useGameStore = defineStore("game", () => {
         }
     }
 
+    async function loadPatchVersionInfo() {
+        isCheckingVersionInfo.value = true;
+
+        try {
+            versionInfo.value = await window.app.getPatchVersionInfo();
+        } catch (error) {
+            await reportError({
+                title: "Patch Check Failed",
+                message: "Unable to check the game patch version.",
+                context: "patchStore.loadPatchVersionInfo",
+                error
+            });
+        } finally {
+            isCheckingVersionInfo.value = false;
+        }
+    }
+
     return {
         installPath,
         isLoaded,
@@ -126,10 +146,13 @@ export const useGameStore = defineStore("game", () => {
         isCheckingMaintenance,
         taskProgress,
         isRunningTask,
+        versionInfo,
+        isCheckingVersionInfo,
         loadInstallPath,
         checkMaintenance,
         openInstallFolder,
         subscribeInstallerProgress,
-        downloadAndRunInstaller
+        downloadAndRunInstaller,
+        loadPatchVersionInfo
     };
 });

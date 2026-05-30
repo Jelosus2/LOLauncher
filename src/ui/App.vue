@@ -24,7 +24,9 @@ let unsubscribeInstallerProgress: (() => void) | undefined;
 
 const launcherState = computed<LauncherState>(() => {
     if (!gameStore.isLoaded) return "ready";
-    return gameStore.installPath ? "ready" : "install";
+    if (!gameStore.installPath) return "install";
+    if (gameStore.versionInfo?.needsPatch) return "update";
+    return "ready";
 });
 
 const mainActionLabel = computed(() => {
@@ -77,6 +79,7 @@ onMounted(() => {
     void launcherStore.loadLauncherVersion();
     void settingsStore.loadSettings();
     void gameStore.loadInstallPath();
+    void gameStore.loadPatchVersionInfo();
 
     unsubscribeInstallerProgress = gameStore.subscribeInstallerProgress();
 });

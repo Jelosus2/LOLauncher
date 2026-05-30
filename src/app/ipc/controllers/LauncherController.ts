@@ -38,7 +38,11 @@ export class LauncherController {
     @IpcHandle("launcher:get-news")
     async getGameNews() {
         const newsEndpoint = "https://external-api.valofe.com/api/library/home/posts/news/lastorigin-gl?lang=en&sections=event&limit=4";
-        const response = await fetch(newsEndpoint);
+        const response = await fetch(newsEndpoint, {
+            headers: {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.5060.134 Safari/537.36 Chrome"
+            }
+        });
         const data = await response.json() as NewsResponse;
 
         const news: GameNewsItem[] = [];

@@ -26,6 +26,7 @@ const launcherApi: LauncherApi = {
             ipcRenderer.removeListener("installer:progress", listener);
         };
     },
+    getPatchVersionInfo: () => ipcRenderer.invoke("patch:get-version-info"),
     minimizeWindow: () => ipcRenderer.invoke("window:minimize"),
     closeWindow: () => ipcRenderer.invoke("window:close")
 } as const;

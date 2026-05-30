@@ -61,7 +61,11 @@ export async function downloadGameInstaller(onProgress: ProgressCallback) {
 }
 
 async function fetchManifest() {
-    const response = await fetch(manifestUrl);
+    const response = await fetch(manifestUrl, {
+        headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.5060.134 Safari/537.36 Chrome"
+        }
+    });
     if (!response.ok)
         throw new Error(`Installer manifest request failed: ${response.status}`);
 
@@ -89,7 +93,11 @@ async function getMd5(filePath: string) {
 }
 
 async function downloadFile(url: string, outputPath: string, fileName: string, totalBytes: number, onProgress: ProgressCallback) {
-    const response = await fetch(url);
+    const response = await fetch(url, {
+        headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.5060.134 Safari/537.36 Chrome"
+        }
+    });
     if (!response.ok || !response.body)
         throw new Error(`Installer download failed: ${response.status}`);
 

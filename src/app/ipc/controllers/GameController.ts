@@ -1,3 +1,4 @@
+import { getPatchVersionInfo } from "../../game/patchService.js";
 import { checkMaintenanceStatus, assertCanInstallOrPatch } from "../../game/maintenanceService.js";
 import { downloadGameInstaller, runInstaller } from "../../game/installerService.js";
 import { getGameInstallPath } from "../../game/gameService.js";
@@ -59,5 +60,10 @@ export class GameController {
             label: "Game installed successfully",
             percent: 100
         });
+    }
+
+    @IpcHandle("patch:get-version-info")
+    getVersionInfo() {
+        return getPatchVersionInfo();
     }
 }

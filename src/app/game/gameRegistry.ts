@@ -21,3 +21,22 @@ function getRegistryValue(name: string) {
 export function getRegistryGameInstallPath() {
     return getRegistryValue("PATH");
 }
+
+export function getRegistryGameVersion() {
+    return getRegistryValue("VERSION");
+}
+
+export function setRegistryGameVersion(version: number) {
+    const hexVersion = `0x${version.toString(16)}`;
+
+    return new Promise<void>((resolve, reject) => {
+        gameRegistry.set("VERSION", Winreg.REG_DWORD, hexVersion, (error) => {
+            if (error) {
+                reject(error);
+                return;
+            }
+
+            resolve();
+        })
+    });
+}
