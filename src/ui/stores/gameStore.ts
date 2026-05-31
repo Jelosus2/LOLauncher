@@ -143,11 +143,6 @@ export const useGameStore = defineStore("game", () => {
                 totalBytes: taskProgress.value.totalBytes
             };
 
-            gameVersionInfo.value = {
-                gameVersion: null,
-                patchVersion: null
-            };
-
             await reportError({
                 title: isStorageError(error) ? "Not Enough Disk Space" : "Update Failed",
                 message: getCleanErrorMessage(error, "Unable to patch Last Origin R+."),
@@ -195,6 +190,34 @@ export const useGameStore = defineStore("game", () => {
         }
     }
 
+    async function pausePatch() {
+        await window.app.pausePatch();
+        taskProgress.value = {
+            ...taskProgress.value,
+            isPaused: true,
+            label: "Patch paused"
+        };
+    }
+
+    async function resumePatch() {
+        await window.app.resumePatch();
+        taskProgress.value = {
+            ...taskProgress.value,
+            isPaused: false,
+            label: "Resuming patch"
+        };
+    }
+
+    async function cancelPatch() {
+        await window.app.cancelPatch();
+        taskProgress.value = {
+            ...taskProgress.value,
+            label: "Canceling patch",
+            isPausable: false,
+            isCancelable: false
+        };
+    }
+
     function resetFinishedTaskSoon() {
         setTimeout(() => {
             if (taskProgress.value.step === "complete" || taskProgress.value.step === "failed")
@@ -222,6 +245,9 @@ export const useGameStore = defineStore("game", () => {
         downloadAndRunInstaller,
         loadPatchVersionInfo,
         applyLatestPatch,
-        loadGameVersionInfo
+        loadGameVersionInfo,
+        pausePatch,
+        resumePatch,
+        cancelPatch
     };
 });

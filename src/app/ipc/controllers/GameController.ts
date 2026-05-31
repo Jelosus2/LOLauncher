@@ -1,4 +1,5 @@
 import { checkMaintenanceStatus, assertCanInstallOrPatch } from "../../game/maintenanceService.js";
+import { patchTaskController, PatchTaskCanceledError } from "../../game/patchTaskController.js";
 import { downloadGameInstaller, runInstaller } from "../../game/installerService.js";
 import { getPatchVersionInfo, applyLatestPatch } from "../../game/patchService.js";
 import { getGameInstallPath, getGameVersionInfo } from "../../game/gameService.js";
@@ -62,9 +63,22 @@ export class GameController {
 
         await assertCanInstallOrPatch();
 
-        return applyLatestPatch((progress) => {
-            event.sender.send("installer:progress", progress);
-        });
+        try {
+            return await applyLatestPatch((progress) => {
+                event.sender.send("installer:progress", progress);
+            });
+        } catch (error) {
+            if (error instanceof PatchTaskCanceledError) {
+                event.sender.send("installer:progress", {
+                    step: "failed",
+                    label: "Patch canceled",
+                    percent: 100
+                });
+                return;
+            }
+
+            throw error;
+        }
     }
 
     @IpcHandle("patch:get-version-info")
@@ -76,8 +90,36 @@ export class GameController {
     async applyLatestGamePatch(event: IpcMainInvokeEvent) {
         await assertCanInstallOrPatch();
 
-        return applyLatestPatch((progress) => {
-            event.sender.send("installer:progress", progress);
-        });
+        try {
+            return await applyLatestPatch((progress) => {
+                event.sender.send("installer:progress", progress);
+            });
+        } catch (error) {
+            if (error instanceof PatchTaskCanceledError) {
+                event.sender.send("installer:progress", {
+                    step: "failed",
+                    label: "Patch canceled",
+                    percent: 100
+                });
+                return;
+            }
+
+            throw error;
+        }
+    }
+
+    @IpcHandle("patch:pause")
+    pausePatch() {
+        patchTaskController.pause();
+    }
+
+    @IpcHandle("patch:resume")
+    resumePatch() {
+        patchTaskController.resume();
+    }
+
+    @IpcHandle("patch:cancel")
+    cancelPatch() {
+        patchTaskController.cancel();
     }
 }

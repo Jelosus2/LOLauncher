@@ -29,6 +29,9 @@ const launcherApi: LauncherApi = {
     getPatchVersionInfo: () => ipcRenderer.invoke("patch:get-version-info"),
     applyLatestGamePatch: () => ipcRenderer.invoke("patch:apply-latest"),
     getGameVersionInfo: () => ipcRenderer.invoke("game:get-version-info"),
+    pausePatch: () => ipcRenderer.invoke("patch:pause"),
+    resumePatch: () => ipcRenderer.invoke("patch:resume"),
+    cancelPatch: () => ipcRenderer.invoke("patch:cancel"),
     minimizeWindow: () => ipcRenderer.invoke("window:minimize"),
     closeWindow: () => ipcRenderer.invoke("window:close")
 } as const;

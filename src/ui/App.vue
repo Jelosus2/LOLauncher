@@ -42,7 +42,7 @@ const gameVersionLabel = computed(() => {
     if (patchVersion === null)
         return `Game version: ${gameVersion}`;
 
-    return `Game version: ${gameVersion} (Patch ${patchVersion})`;
+    return `Game version: ${gameVersion} (${patchVersion})`;
 });
 
 async function handleMainAction() {
@@ -139,6 +139,9 @@ onUnmounted(() => {
         @open-modal="activeModal = $event"
         @repair-game="handleRepairGame"
         @uninstall-game="handleUninstallGame"
+        @pause-patch="gameStore.pausePatch"
+        @resume-patch="gameStore.resumePatch"
+        @cancel-patch="gameStore.cancelPatch"
     />
 
     <ActionModal

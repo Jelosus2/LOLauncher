@@ -19,6 +19,9 @@ defineEmits<{
     openModal: ["settings" | "login"];
     repairGame: [];
     uninstallGame: [];
+    pausePatch: [];
+    resumePatch: [];
+    cancelPatch: [];
 }>();
 
 const launcherStore = useLauncherStore();
@@ -115,6 +118,32 @@ function close() {
                             class="launcher-progress-fill"
                             :style="{ width: `${Math.max(0, Math.min(100, taskProgress.percent))}%` }"
                         />
+                    </div>
+
+                    <div
+                        v-if="taskProgress.isPausable || taskProgress.isCancelable"
+                        class="launcher-progress-actions"
+                    >
+                        <button
+                            v-if="taskProgress.isPausable && !taskProgress.isPaused"
+                            @click="$emit('pausePatch')"
+                        >
+                            Pause
+                        </button>
+
+                        <button
+                            v-if="taskProgress.isPausable && taskProgress.isPaused"
+                            @click="$emit('resumePatch')"
+                        >
+                            Resume
+                        </button>
+
+                        <button
+                            v-if="taskProgress.isCancelable"
+                            @click="$emit('cancelPatch')"
+                        >
+                            Stop
+                        </button>
                     </div>
                 </div>
             </section>

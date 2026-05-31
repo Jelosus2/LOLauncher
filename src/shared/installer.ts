@@ -27,4 +27,7 @@ export type LauncherTaskProgress = {
     percent: number;
     completedBytes?: number;
     totalBytes?: number;
+    isPausable?: boolean;
+    isPaused?: boolean;
+    isCancelable?: boolean;
 };

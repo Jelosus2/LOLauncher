@@ -3,6 +3,7 @@ import type { LauncherTaskProgress } from "../../shared/installer.js";
 
 import { getRegistryGameVersion, getRegistryGameInstallPath, setRegistryGameVersion } from "./gameRegistry.js";
 import { assertAvailableStorage, formatBytes, InsufficientStorageError } from "../storage/storageService.js";
+import { patchTaskController, PatchTaskCanceledError } from "./patchTaskController.js";
 import { getPatchDirPath } from "../shared/paths.js";
 import { pipeline } from "node:stream/promises";
 import { Readable } from "node:stream";
@@ -28,6 +29,21 @@ export async function getPatchVersionInfo(): Promise<PatchVersionInfo> {
 }
 
 export async function applyLatestPatch(onProgress: ProgressCallback): Promise<PatchApplyResult> {
+    const abortSignal = patchTaskController.start();
+
+    try {
+        return await applyLatestPatchInternal(onProgress, abortSignal);
+    } catch (error) {
+        if (abortSignal.aborted)
+            throw new PatchTaskCanceledError();
+
+        throw error;
+    } finally {
+        patchTaskController.finish();
+    }
+}
+
+async function applyLatestPatchInternal(onProgress: ProgressCallback, abortSignal: AbortSignal): Promise<PatchApplyResult> {
     const version = await getPatchVersionInfo();
 
     if (!version.needsPatch) {
@@ -76,6 +92,7 @@ export async function applyLatestPatch(onProgress: ProgressCallback): Promise<Pa
                 archivePath,
                 entry,
                 `Downloading patch file ${fileNumber}`,
+                abortSignal,
                 (bytes) => {
                     downloadedBytes += bytes;
                     emitByteProgress(onProgress, `Downloading patch files...`, downloadedBytes, totalDownloadBytes);
@@ -88,10 +105,12 @@ export async function applyLatestPatch(onProgress: ProgressCallback): Promise<Pa
             patchDir,
             installPath,
             concurrency: 2,
+            abortSignal,
             onProgress
         });
 
         await setRegistryGameVersion(patchVersion);
+        await cleanupPatchArchives(downloadedArchivePaths);
 
         emitProgress(
             onProgress,
@@ -106,8 +125,12 @@ export async function applyLatestPatch(onProgress: ProgressCallback): Promise<Pa
             toVersion: patchVersion,
             appliedFiles: entries.length
         };
-    } finally {
+    } catch (error) {
+        if (abortSignal.aborted || error instanceof PatchTaskCanceledError)
+            throw error;
+
         await cleanupPatchArchives(downloadedArchivePaths);
+        throw error;
     }
 }
 
@@ -261,9 +284,13 @@ async function downloadPatchArchive(
     outputPath: string,
     entry: PatchListEntry,
     label: string,
+    abortSignal: AbortSignal,
     onBytes: (bytes: number) => void
 ) {
+    await patchTaskController.checkpoint();
+
     if (await hasExpectedFileSize(outputPath, entry.compressedSize)) {
+        await patchTaskController.checkpoint();
         onBytes(entry.compressedSize);
         return;
     }
@@ -271,6 +298,7 @@ async function downloadPatchArchive(
     await fsp.rm(outputPath, { force: true });
 
     const response = await fetch(url, {
+        signal: abortSignal,
         headers: {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.5060.134 Safari/537.36 Chrome"
         }
@@ -280,7 +308,9 @@ async function downloadPatchArchive(
         throw new Error(`${label} failed: HTTP ${response.status}`);
 
     const progressStream = new TransformStream<Uint8Array, Uint8Array>({
-        transform(chunk, controller) {
+        async transform(chunk, controller) {
+            await patchTaskController.checkpoint();
+
             onBytes(chunk.byteLength);
             controller.enqueue(chunk);
         }
@@ -300,9 +330,10 @@ async function extractPatchArchivesWithPool(options: {
     patchDir: string;
     installPath: string;
     concurrency: number;
+    abortSignal: AbortSignal;
     onProgress: ProgressCallback;
 }) {
-    const { entries, patchDir, installPath, concurrency, onProgress } = options;
+    const { entries, patchDir, installPath, concurrency, abortSignal, onProgress } = options;
 
     let nextIndex = 0;
     let completedCount = 0;
@@ -313,6 +344,8 @@ async function extractPatchArchivesWithPool(options: {
 
     async function workerLoop() {
         while (true) {
+            await patchTaskController.checkpoint();
+
             const index = nextIndex;
             nextIndex += 1;
 
@@ -324,7 +357,7 @@ async function extractPatchArchivesWithPool(options: {
             const archivePath = path.join(patchDir, entry.archiveName);
             const outputPath = resolvePatchOutputPath(installPath, entry.relativeOutputPath);
 
-            const replaced = await extractPatchArchiveInWorker(archivePath, outputPath, `Applying patch file ${fileNumber}`);
+            const replaced = await extractPatchArchiveInWorker(archivePath, outputPath, `Applying patch file ${fileNumber}`, abortSignal);
 
             if (replaced)
                 replacedCount += 1;
@@ -351,7 +384,7 @@ async function extractPatchArchivesWithPool(options: {
     };
 }
 
-function extractPatchArchiveInWorker(archivePath: string, outputPath: string, label: string) {
+function extractPatchArchiveInWorker(archivePath: string, outputPath: string, label: string, abortSignal: AbortSignal) {
     return new Promise<boolean>((resolve, reject) => {
         const worker = new Worker(new URL("./patchExtractWorker.js", import.meta.url), {
             workerData: {
@@ -362,15 +395,33 @@ function extractPatchArchiveInWorker(archivePath: string, outputPath: string, la
 
         let settled = false;
 
+        const abort = async () => {
+            if (settled)
+                return;
+
+            settled = true;
+            await worker.terminate();
+            reject(new PatchTaskCanceledError());
+        };
+
+        if (abortSignal.aborted) {
+            void abort();
+            return;
+        }
+
+        abortSignal.addEventListener("abort", abort, { once: true });
+
         worker.on("message", (message: { type: string; message?: string; replaced?: boolean }) => {
             if (message.type === "done" && !settled) {
                 settled = true;
+                abortSignal.removeEventListener("abort", abort);
                 resolve(message.replaced ?? true);
                 return;
             }
 
             if (message.type === "error" && !settled) {
                 settled = true;
+                abortSignal.removeEventListener("abort", abort);
                 reject(new Error(`${label} failed: ${message.message ?? "Unknown worker error"}`));
             }
         });
@@ -380,6 +431,7 @@ function extractPatchArchiveInWorker(archivePath: string, outputPath: string, la
                 return;
 
             settled = true;
+            abortSignal.removeEventListener("abort", abort);
             reject(error);
         });
 
@@ -388,6 +440,7 @@ function extractPatchArchiveInWorker(archivePath: string, outputPath: string, la
                 return;
 
             settled = true;
+            abortSignal.removeEventListener("abort", abort);
 
             if (code === 0)
                 resolve(true);
@@ -443,6 +496,9 @@ function emitProgress(
         label,
         percent: Math.max(0, Math.min(100, percent)),
         completedBytes,
-        totalBytes
+        totalBytes,
+        isPausable: step === "patching-game",
+        isPaused: patchTaskController.isPaused(),
+        isCancelable: step === "patching-game"
     });
 }

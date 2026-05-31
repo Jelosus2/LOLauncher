@@ -27,6 +27,9 @@ export type LauncherApi = {
     getPatchVersionInfo: () => Promise<PatchVersionInfo>;
     applyLatestGamePatch: () => Promise<PatchApplyResult>;
     getGameVersionInfo: () => Promise<GameVersionInfo>;
+    pausePatch: () => Promise<void>;
+    resumePatch: () => Promise<void>;
+    cancelPatch: () => Promise<void>;
     minimizeWindow: () => Promise<void>;
     closeWindow: () => Promise<void>;
 };
