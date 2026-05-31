@@ -145,7 +145,7 @@ button {
 
 .main-action {
     height: 64px;
-    margin-top: auto;
+    margin-top: 0;
     border: 0;
     color: #071012;
     background: linear-gradient(180deg, #ffad63, #ff7a2e);
@@ -153,6 +153,107 @@ button {
     font-weight: 950;
     text-transform: uppercase;
     box-shadow: 0 16px 34px rgba(255, 122, 46, 0.22);
+}
+
+.main-action-menu {
+    position: relative;
+    margin-top: 0;
+}
+
+.main-action-split {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 54px;
+    height: 64px;
+    overflow: hidden;
+    box-shadow: 0 16px 34px rgba(255, 122, 46, 0.22);
+}
+
+.main-action.split-primary {
+    width: 100%;
+    height: 100%;
+    margin-top: 0;
+    box-shadow: none;
+}
+
+.main-action-dropdown-toggle {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    border-left: 1px solid rgba(7, 16, 18, 0.22);
+    background: linear-gradient(180deg, #ffad63, #ff7a2e);
+}
+
+.main-action-dropdown-toggle span,
+.main-action-dropdown-toggle span::before,
+.main-action-dropdown-toggle span::after {
+    width: 20px;
+    height: 3px;
+    display: block;
+    background: #071012;
+}
+
+.main-action-dropdown-toggle span {
+    position: relative;
+}
+
+.main-action-dropdown-toggle span::before,
+.main-action-dropdown-toggle span::after {
+    content: "";
+    position: absolute;
+    left: 0;
+}
+
+.main-action-dropdown-toggle span::before {
+    top: -7px;
+}
+
+.main-action-dropdown-toggle span::after {
+    top: 7px;
+}
+
+.main-action-dropdown {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: calc(100% + 8px);
+    z-index: 4;
+    display: grid;
+    border: 1px solid rgba(255, 205, 150, 0.28);
+    background: rgba(18, 14, 11, 0.94);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.38);
+    backdrop-filter: blur(10px);
+}
+
+.main-action-dropdown button {
+    min-height: 42px;
+    padding: 0 14px;
+    border: 0;
+    border-bottom: 1px solid rgba(255, 205, 150, 0.12);
+    background: transparent;
+    color: #eef8f8;
+    font-size: 13px;
+    font-weight: 850;
+    text-align: left;
+    text-transform: uppercase;
+}
+
+.main-action-dropdown button:hover {
+    background: rgba(255, 248, 238, 0.10);
+}
+
+.main-action-dropdown button:last-child {
+    border-bottom: 0;
+}
+
+.main-action-dropdown button.danger {
+    color: #ffbd9f;
+}
+
+.main-action-menu.disabled {
+    opacity: 0.72;
 }
 
 .sidebar-settings-button {
@@ -708,8 +809,17 @@ button {
     text-shadow: 0 1px 10px rgba(0, 0, 0, 0.72);
 }
 
+.launcher-progress-header span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .launcher-progress-header strong {
     color: #ffbd7c;
+    flex: 0 0 auto;
+    white-space: nowrap;
 }
 
 .launcher-progress-track {
@@ -768,4 +878,14 @@ button {
 
 .service-status-dialog .secondary-action {
     margin: 0 20px 20px;
+}
+
+.game-version-label {
+    margin: auto 0 0;
+    color: rgba(238, 248, 248, 0.88);
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.3;
+    text-transform: uppercase;
+    text-shadow: 0 1px 12px rgba(0, 0, 0, 0.72);
 }

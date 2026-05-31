@@ -4,20 +4,52 @@ import type { LauncherTaskProgress } from "../../shared/installer";
 import LauncherSidebar from "./LauncherSidebar.vue";
 import NewsCarousel from "./NewsCarousel.vue";
 import { useLauncherStore } from "../stores/launcherStore";
+import { computed } from "vue";
 
-defineProps<{
+const props = defineProps<{
     launcherState: "install" | "ready" | "update";
     mainActionLabel: string;
     mainActionDisabled?: boolean;
     taskProgress: LauncherTaskProgress
+    gameVersionLabel?: string;
 }>();
 
 defineEmits<{
     mainAction: [];
     openModal: ["settings" | "login"];
+    repairGame: [];
+    uninstallGame: [];
 }>();
 
 const launcherStore = useLauncherStore();
+
+const hasByteProgress = computed(() => {
+    return (
+        typeof props.taskProgress.completedBytes === "number" &&
+        typeof props.taskProgress.totalBytes === "number" &&
+        props.taskProgress.totalBytes > 0
+    );
+});
+
+const progressValueText = computed(() => {
+    if (!hasByteProgress.value)
+        return `${Math.round(props.taskProgress.percent)}%`;
+
+    return `${formatBytes(props.taskProgress.completedBytes ?? 0)} / ${formatBytes(props.taskProgress.totalBytes ?? 0)}`;
+});
+
+function formatBytes(bytes: number) {
+    const units = ["B", "KB", "MB", "GB", "TB"];
+    let value = bytes;
+    let unitIndex = 0;
+
+    while (value >= 1024 && unitIndex < units.length - 1) {
+        value /= 1024;
+        unitIndex += 1;
+    }
+
+    return `${value.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+}
 
 function minimize() {
     window.app.minimizeWindow();
@@ -48,8 +80,11 @@ function close() {
                 :launcher-state="launcherState"
                 :main-action-label="mainActionLabel"
                 :main-action-disabled="mainActionDisabled"
+                :game-version-label="gameVersionLabel"
                 @main-action="$emit('mainAction')"
                 @open-settings="$emit('openModal', 'settings')"
+                @repair-game="$emit('repairGame')"
+                @uninstall-game="$emit('uninstallGame')"
             />
 
             <section class="launcher-main">
@@ -72,7 +107,7 @@ function close() {
                 >
                     <div class="launcher-progress-header">
                         <span>{{ taskProgress.label }}</span>
-                        <strong>{{ Math.round(taskProgress.percent) }}%</strong>
+                        <strong>{{ progressValueText }}</strong>
                     </div>
 
                     <div class="launcher-progress-track">

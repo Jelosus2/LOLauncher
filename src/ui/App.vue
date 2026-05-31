@@ -35,6 +35,16 @@ const mainActionLabel = computed(() => {
     return "Start Game";
 });
 
+const gameVersionLabel = computed(() => {
+    const gameVersion = gameStore.gameVersionInfo.gameVersion ?? "Unknown";
+    const patchVersion = gameStore.gameVersionInfo.patchVersion;
+
+    if (patchVersion === null)
+        return `Game version: ${gameVersion}`;
+
+    return `Game version: ${gameVersion} (Patch ${patchVersion})`;
+});
+
 async function handleMainAction() {
     if (gameStore.isRunningTask) return;
 
@@ -73,6 +83,35 @@ async function handleMainAction() {
 
         // launch game later
     }
+
+    if (launcherState.value === "update") {
+        const status = await gameStore.checkMaintenance();
+
+        if (status.isRestrictedCountry) {
+            serviceDialog.value = {
+                title: "Service Unavailable",
+                message: status.message
+            };
+            return;
+        }
+
+        void gameStore.applyLatestPatch();
+        return;
+    }
+}
+
+function handleRepairGame() {
+    serviceDialog.value = {
+        title: "Repair Game",
+        message: "Repair will be wired to the patch verification flow later."
+    };
+}
+
+function handleUninstallGame() {
+    serviceDialog.value = {
+        title: "Uninstall Game",
+        message: "Uninstall will be wired after the removal flow is implemented."
+    };
 }
 
 onMounted(() => {
@@ -95,8 +134,11 @@ onUnmounted(() => {
         :main-action-label="mainActionLabel"
         :main-action-disabled="gameStore.isRunningTask"
         :task-progress="gameStore.taskProgress"
+        :game-version-label="gameVersionLabel"
         @main-action="handleMainAction"
         @open-modal="activeModal = $event"
+        @repair-game="handleRepairGame"
+        @uninstall-game="handleUninstallGame"
     />
 
     <ActionModal

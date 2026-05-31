@@ -1,6 +1,7 @@
 import type { LauncherTaskProgress } from "../../shared/installer";
 import type { MaintenanceStatus } from "../../shared/maintenance";
 import type { PatchVersionInfo } from "../../shared/patch";
+import type { GameVersionInfo } from "../../shared/game";
 
 import { isStorageError, getCleanErrorMessage } from "@/utils/errors";
 import { reportError } from "@/services/errorReporter";
@@ -23,12 +24,21 @@ export const useGameStore = defineStore("game", () => {
     const isRunningTask = ref(false);
     const versionInfo = ref<PatchVersionInfo | null>(null);
     const isCheckingVersionInfo = ref(false);
+    const gameVersionInfo = ref<GameVersionInfo>({
+        gameVersion: null,
+        patchVersion: null
+    });
 
     async function loadInstallPath() {
         try {
             installPath.value = await window.app.getGameInstallPath();
+            await loadGameVersionInfo();
         } catch (error) {
             installPath.value = null;
+            gameVersionInfo.value = {
+                gameVersion: null,
+                patchVersion: null
+            };
 
             await reportError({
                 title: "Game Detection Failed",
@@ -112,12 +122,41 @@ export const useGameStore = defineStore("game", () => {
                 error
             });
         } finally {
-            setTimeout(() => {
-                if (taskProgress.value.step === "complete" || taskProgress.value.step === "failed")
-                    taskProgress.value = { ...idleProgress };
+            await loadInstallPath();
+            await loadPatchVersionInfo();
+            resetFinishedTaskSoon();
+        }
+    }
 
-                isRunningTask.value = false;
-            }, 4000);
+    async function applyLatestPatch() {
+        isRunningTask.value = true;
+
+        try {
+            await window.app.applyLatestGamePatch();
+            await loadPatchVersionInfo();
+        } catch (error) {
+            taskProgress.value = {
+                step: "failed",
+                label: "Update failed",
+                percent: taskProgress.value.percent || 100,
+                completedBytes: taskProgress.value.completedBytes,
+                totalBytes: taskProgress.value.totalBytes
+            };
+
+            gameVersionInfo.value = {
+                gameVersion: null,
+                patchVersion: null
+            };
+
+            await reportError({
+                title: isStorageError(error) ? "Not Enough Disk Space" : "Update Failed",
+                message: getCleanErrorMessage(error, "Unable to patch Last Origin R+."),
+                context: "gameStore.applyLatestPatch",
+                error
+            });
+        } finally {
+            resetFinishedTaskSoon();
+            await loadGameVersionInfo();
         }
     }
 
@@ -138,6 +177,33 @@ export const useGameStore = defineStore("game", () => {
         }
     }
 
+    async function loadGameVersionInfo() {
+        try {
+            gameVersionInfo.value = await window.app.getGameVersionInfo();
+        } catch (error) {
+            gameVersionInfo.value = {
+                gameVersion: null,
+                patchVersion: null
+            };
+
+            await reportError({
+                title: "Game Version Check Failed",
+                message: "Unable to read the installed game version.",
+                context: "gameStore.loadGameVersionInfo",
+                error
+            });
+        }
+    }
+
+    function resetFinishedTaskSoon() {
+        setTimeout(() => {
+            if (taskProgress.value.step === "complete" || taskProgress.value.step === "failed")
+                taskProgress.value = { ...idleProgress };
+
+            isRunningTask.value = false;
+        }, 4000);
+    }
+
     return {
         installPath,
         isLoaded,
@@ -148,11 +214,14 @@ export const useGameStore = defineStore("game", () => {
         isRunningTask,
         versionInfo,
         isCheckingVersionInfo,
+        gameVersionInfo,
         loadInstallPath,
         checkMaintenance,
         openInstallFolder,
         subscribeInstallerProgress,
         downloadAndRunInstaller,
-        loadPatchVersionInfo
+        loadPatchVersionInfo,
+        applyLatestPatch,
+        loadGameVersionInfo
     };
 });

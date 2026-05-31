@@ -1,7 +1,7 @@
-import { getPatchVersionInfo } from "../../game/patchService.js";
 import { checkMaintenanceStatus, assertCanInstallOrPatch } from "../../game/maintenanceService.js";
 import { downloadGameInstaller, runInstaller } from "../../game/installerService.js";
-import { getGameInstallPath } from "../../game/gameService.js";
+import { getPatchVersionInfo, applyLatestPatch } from "../../game/patchService.js";
+import { getGameInstallPath, getGameVersionInfo } from "../../game/gameService.js";
 import { shell , type IpcMainInvokeEvent} from "electron";
 import { IpcHandle } from "../ipcDecorators.js";
 
@@ -24,6 +24,11 @@ export class GameController {
     @IpcHandle("game:check-maintenance")
     checkMaintenance() {
         return checkMaintenanceStatus();
+    }
+
+    @IpcHandle("game:get-version-info")
+    getGameVersion() {
+        return getGameVersionInfo();
     }
 
     @IpcHandle("installer:download-game")
@@ -55,15 +60,24 @@ export class GameController {
             return;
         }
 
-        event.sender.send("installer:progress", {
-            step: "complete",
-            label: "Game installed successfully",
-            percent: 100
+        await assertCanInstallOrPatch();
+
+        return applyLatestPatch((progress) => {
+            event.sender.send("installer:progress", progress);
         });
     }
 
     @IpcHandle("patch:get-version-info")
     getVersionInfo() {
         return getPatchVersionInfo();
+    }
+
+    @IpcHandle("patch:apply-latest")
+    async applyLatestGamePatch(event: IpcMainInvokeEvent) {
+        await assertCanInstallOrPatch();
+
+        return applyLatestPatch((progress) => {
+            event.sender.send("installer:progress", progress);
+        });
     }
 }

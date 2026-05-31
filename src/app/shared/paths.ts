@@ -24,3 +24,7 @@ export function getLogPath() {
 export function getInstallerDirPath(version: string) {
     return path.join(app.getPath("userData"), "installers", version);
 }
+
+export function getPatchDirPath(version: number) {
+    return path.join(app.getPath("userData"), "patches", String(version));
+}

@@ -25,4 +25,6 @@ export type LauncherTaskProgress = {
     step: LauncherTaskStep;
     label: string;
     percent: number;
+    completedBytes?: number;
+    totalBytes?: number;
 };
