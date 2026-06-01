@@ -28,6 +28,7 @@ export const useGameStore = defineStore("game", () => {
         gameVersion: null,
         patchVersion: null
     });
+    const isGameRunning = ref(false);
 
     async function loadInstallPath() {
         try {
@@ -212,10 +213,55 @@ export const useGameStore = defineStore("game", () => {
         await window.app.cancelPatch();
         taskProgress.value = {
             ...taskProgress.value,
-            label: "Canceling patch",
+            label: "Canceling after current file",
             isPausable: false,
             isCancelable: false
         };
+    }
+
+    async function repairGame() {
+        isRunningTask.value = true;
+
+        try {
+            await window.app.repairGame();
+            await loadPatchVersionInfo();
+            await loadGameVersionInfo();
+        } catch (error) {
+            taskProgress.value = {
+                step: "failed",
+                label: "Repair failed",
+                percent: taskProgress.value.percent || 100,
+                completedBytes: taskProgress.value.completedBytes,
+                totalBytes: taskProgress.value.totalBytes
+            };
+
+            await reportError({
+                title: isStorageError(error) ? "Not Enough Disk Space" : "Repair Failed",
+                message: getCleanErrorMessage(error, "Unable to repair Last Origin R+."),
+                context: "gameStore.repairGame",
+                error
+            });
+        } finally {
+            resetFinishedTaskSoon();
+        }
+    }
+
+    async function isGameProcessRunning() {
+        try {
+            isGameRunning.value = await window.app.isGameProcessRunning();
+            return isGameRunning.value;
+        } catch (error) {
+            isGameRunning.value = false;
+
+            await reportError({
+                title: "Game Process Check Failed",
+                message: "Unable to check whether Last Origin R+ is running.",
+                context: "gameStore.checkGameProcessStatus",
+                error
+            });
+
+            throw error;
+        }
     }
 
     function resetFinishedTaskSoon() {
@@ -238,6 +284,7 @@ export const useGameStore = defineStore("game", () => {
         versionInfo,
         isCheckingVersionInfo,
         gameVersionInfo,
+        isGameRunning,
         loadInstallPath,
         checkMaintenance,
         openInstallFolder,
@@ -248,6 +295,8 @@ export const useGameStore = defineStore("game", () => {
         loadGameVersionInfo,
         pausePatch,
         resumePatch,
-        cancelPatch
+        cancelPatch,
+        repairGame,
+        isGameProcessRunning
     };
 });

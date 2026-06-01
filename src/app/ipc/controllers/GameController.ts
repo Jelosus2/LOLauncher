@@ -1,8 +1,8 @@
+import { getGameInstallPath, getGameVersionInfo, isGameProcessRunning, assertGameIsNotRunning } from "../../game/gameService.js";
+import { getPatchVersionInfo, applyLatestPatch, repairGameFiles } from "../../game/patchService.js";
 import { checkMaintenanceStatus, assertCanInstallOrPatch } from "../../game/maintenanceService.js";
 import { patchTaskController, PatchTaskCanceledError } from "../../game/patchTaskController.js";
 import { downloadGameInstaller, runInstaller } from "../../game/installerService.js";
-import { getPatchVersionInfo, applyLatestPatch } from "../../game/patchService.js";
-import { getGameInstallPath, getGameVersionInfo } from "../../game/gameService.js";
 import { shell , type IpcMainInvokeEvent} from "electron";
 import { IpcHandle } from "../ipcDecorators.js";
 
@@ -30,6 +30,34 @@ export class GameController {
     @IpcHandle("game:get-version-info")
     getGameVersion() {
         return getGameVersionInfo();
+    }
+
+    @IpcHandle("game:is-running")
+    isGameRunning() {
+        return isGameProcessRunning();
+    }
+
+    @IpcHandle("game:repair")
+    async repairGame(event: IpcMainInvokeEvent) {
+        await assertCanInstallOrPatch();
+        await assertGameIsNotRunning();
+
+        try {
+            return await repairGameFiles((progress) => {
+                event.sender.send("installer:progress", progress);
+            });
+        } catch (error) {
+            if (error instanceof PatchTaskCanceledError) {
+                event.sender.send("installer:progress", {
+                    step: "failed",
+                    label: "Repair canceled",
+                    percent: 100
+                });
+                return;
+            }
+
+            throw error;
+        }
     }
 
     @IpcHandle("installer:download-game")
@@ -89,6 +117,7 @@ export class GameController {
     @IpcHandle("patch:apply-latest")
     async applyLatestGamePatch(event: IpcMainInvokeEvent) {
         await assertCanInstallOrPatch();
+        await assertGameIsNotRunning();
 
         try {
             return await applyLatestPatch((progress) => {

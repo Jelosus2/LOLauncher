@@ -26,6 +26,10 @@ export function getRegistryGameVersion() {
     return getRegistryValue("VERSION");
 }
 
+export function getRegistryGameFileName() {
+    return getRegistryValue("FILENAME");
+}
+
 export function setRegistryGameVersion(version: number) {
     const hexVersion = `0x${version.toString(16)}`;
 

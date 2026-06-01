@@ -1,9 +1,18 @@
 import type { GameVersionInfo } from "../../shared/game.js";
 
-import { getRegistryGameInstallPath } from "./gameRegistry.js";
+import { getRegistryGameInstallPath, getRegistryGameFileName } from "./gameRegistry.js";
 import { getInstalledGameVersion } from "./patchService.js";
+import findProcess from "find-process";
 import fs from "node:fs/promises";
 import path from "node:path";
+
+type FindProcessResult = {
+    pid: number;
+    ppid: number;
+    bin: string;
+    name: string;
+    cmd: string;
+};
 
 export async function getGameInstallPath() {
     const installPath = await getRegistryGameInstallPath();
@@ -36,6 +45,32 @@ export async function getGameVersionInfo(): Promise<GameVersionInfo> {
         gameVersion,
         patchVersion
     };
+}
+
+export async function isGameProcessRunning() {
+    const processName = await getGameProcessName();
+
+    if (!processName) {
+        return false;
+    }
+
+    const processes = await findProcess("name", processName) as FindProcessResult[];
+    return processes.length > 0;
+}
+
+export async function assertGameIsNotRunning() {
+    const isGameRunning = await isGameProcessRunning();
+
+    if (isGameRunning)
+        throw new Error("Last Origin R+ is currently running. Close the game before updating or repairing.");
+}
+
+async function getGameProcessName() {
+    const fileName = await getRegistryGameFileName();
+    if (!fileName)
+        return null;
+
+    return path.basename(fileName).replace(/\.exe$/i, "");
 }
 
 async function readGameVersion(installPath: string) {

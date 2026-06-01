@@ -1,4 +1,4 @@
-import { parentPort, workerData } from "node:worker_threads";
+import { parentPort } from "node:worker_threads";
 import { pipeline } from "node:stream/promises";
 import lzma from "lzma-native";
 import fsp from "node:fs/promises";
@@ -6,45 +6,64 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 
-type ExtractWorkerData = {
+type ExtractJob = {
+    type: "extract";
+    jobId: number;
     archivePath: string;
     outputPath: string;
 };
 
-const { archivePath, outputPath } = workerData as ExtractWorkerData;
+if (!parentPort)
+    throw new Error("Patch extract worker must run inside a worker thread.");
 
-async function extractPathArchive() {
+parentPort.on("message", (message: ExtractJob) => {
+    if (message.type !== "extract")
+        return;
+
+    void handleExtractJob(message);
+});
+
+async function handleExtractJob(job: ExtractJob) {
+    try {
+        const replaced = await extractPatchArchive(job.archivePath, job.outputPath);
+
+        parentPort?.postMessage({
+            type: "done",
+            jobId: job.jobId,
+            replaced
+        });
+    } catch (error) {
+        parentPort?.postMessage({
+            type: "error",
+            jobId: job.jobId,
+            message: error instanceof Error ? error.message : String(error)
+        });
+    }
+}
+
+async function extractPatchArchive(archivePath: string, outputPath: string) {
     const tempPath = `${outputPath}.patching`;
 
     await fsp.mkdir(path.dirname(outputPath), { recursive: true });
     await fsp.rm(tempPath, { force: true });
 
-    const readable = fs.createReadStream(archivePath);
-    const writeable = fs.createWriteStream(tempPath);
+    try {
+        await pipeline(fs.createReadStream(archivePath), lzma.createDecompressor(), fs.createWriteStream(tempPath));
 
-    await pipeline(readable, lzma.createDecompressor(), writeable);
+        if (await filesAreEqual(tempPath, outputPath)) {
+            await fsp.rm(tempPath, { force: true });
+            return false;
+        }
 
-    if (await filesAreEqual(tempPath, outputPath)) {
-        await fsp.rm(tempPath, { force: true });
+        await fsp.rm(outputPath, { force: true });
+        await fsp.rename(tempPath, outputPath);
 
-        parentPort?.postMessage({ type: "done", replaced: false });
-        return;
+        return true;
+    } catch (error) {
+        await fsp.rm(tempPath, { force: true }).catch(() => {});
+        throw error;
     }
-
-    await fsp.rm(outputPath, { force: true });
-    await fsp.rename(tempPath, outputPath);
-
-    parentPort?.postMessage({ type: "done", replaced: true });
 }
-
-extractPathArchive().catch(async (error) => {
-    await fsp.rm(`${outputPath}.patching`, { force: true }).catch(() => {});
-
-    parentPort?.postMessage({
-        type: "error",
-        message: error instanceof Error ? error.message : String(error)
-    });
-});
 
 async function filesAreEqual(leftPath: string, rightPath: string) {
     const [leftStat, rightStat] = await Promise.all([

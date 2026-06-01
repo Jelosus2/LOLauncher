@@ -76,9 +76,11 @@ async function applyLatestPatchInternal(onProgress: ProgressCallback, abortSigna
     let downloadedBytes  = 0;
 
     try {
-        emitProgress(onProgress, "patching-game", "Downloading patch files…", 0, 0, totalDownloadBytes);
+        emitProgress(onProgress, "patching-game", "Downloading patch files...", 0, 0, totalDownloadBytes);
 
         for (let i = 0; i < entries.length; i += 1) {
+            await patchTaskController.checkpoint();
+
             const entry = entries[i];
             const fileNumber = `${i + 1}/${entries.length}`;
 
@@ -124,6 +126,107 @@ async function applyLatestPatchInternal(onProgress: ProgressCallback, abortSigna
             fromVersion: version.installedVersion,
             toVersion: patchVersion,
             appliedFiles: entries.length
+        };
+    } catch (error) {
+        if (abortSignal.aborted || error instanceof PatchTaskCanceledError)
+            throw error;
+
+        await cleanupPatchArchives(downloadedArchivePaths);
+        throw error;
+    }
+}
+
+export async function repairGameFiles(onProgress: ProgressCallback): Promise<PatchApplyResult> {
+    const abortSignal = patchTaskController.start();
+
+    try {
+        return await repairGameFilesInternal(onProgress, abortSignal);
+    } catch (error) {
+        if (abortSignal.aborted)
+            throw new PatchTaskCanceledError();
+
+        throw error;
+    } finally {
+        patchTaskController.finish();
+    }
+}
+
+async function repairGameFilesInternal(onProgress: ProgressCallback, abortSignal: AbortSignal): Promise<PatchApplyResult> {
+    const installedVersion = await getInstalledGameVersion();
+
+    if (installedVersion === null)
+        throw new Error("Cannot repair game because the installed patch version was not found.");
+
+    const installPath = await getRegistryGameInstallPath();
+    if (!installPath)
+        throw new Error("Cannot repair game because the install path was not found.");
+
+    const patchVersion = installedVersion;
+    const entries = await getPatchList(patchVersion);
+
+    if (entries.length === 0)
+        throw new Error(`Patch ${patchVersion} does not contain any files.`);
+
+    const patchDir = getPatchDirPath(patchVersion);
+    await fsp.mkdir(patchDir, { recursive: true });
+
+    await assertPatchStorage(patchDir, entries);
+
+    const totalDownloadBytes = entries.reduce((total, entry) => total + entry.compressedSize, 0);
+    const downloadedArchivePaths: string[] = [];
+
+    let downloadedBytes = 0;
+
+    try {
+        emitProgress(onProgress, "patching-game", "Downloading repair files...", 0, 0, totalDownloadBytes);
+
+        for (let i = 0; i < entries.length; i += 1) {
+            await patchTaskController.checkpoint();
+
+            const entry = entries[i];
+            const fileNumber = `${i + 1}/${entries.length}`;
+
+            const archivePath = path.join(patchDir, entry.archiveName);
+            const archiveUrl = new URL(`${patchVersion}/${entry.archiveName}`, patchBaseUrl).toString();
+
+            downloadedArchivePaths.push(archivePath);
+
+            await downloadPatchArchive(
+                archiveUrl,
+                archivePath,
+                entry,
+                `Downloading repair file ${fileNumber}`,
+                abortSignal,
+                (bytes) => {
+                    downloadedBytes += bytes;
+                    emitByteProgress(onProgress, "Downloading repair files...", downloadedBytes, totalDownloadBytes);
+                }
+            );
+        }
+
+        const repairResult = await extractPatchArchivesWithPool({
+            entries,
+            patchDir,
+            installPath,
+            concurrency: 2,
+            abortSignal,
+            onProgress,
+            labelPrefix: "Repairing game files"
+        });
+
+        await cleanupPatchArchives(downloadedArchivePaths);
+
+        emitProgress(
+            onProgress,
+            "complete",
+            `Repair complete - ${repairResult.replacedCount} repaired, ${repairResult.skippedCount} unchanged`,
+            100
+        );
+
+        return {
+            fromVersion: installedVersion,
+            toVersion: installedVersion,
+            appliedFiles: repairResult.replacedCount
         };
     } catch (error) {
         if (abortSignal.aborted || error instanceof PatchTaskCanceledError)
@@ -332,15 +435,21 @@ async function extractPatchArchivesWithPool(options: {
     concurrency: number;
     abortSignal: AbortSignal;
     onProgress: ProgressCallback;
+    labelPrefix?: string;
 }) {
-    const { entries, patchDir, installPath, concurrency, abortSignal, onProgress } = options;
+    const { entries, patchDir, installPath, concurrency, abortSignal, onProgress, labelPrefix = "Applying patch files" } = options;
 
     let nextIndex = 0;
     let completedCount = 0;
     let replacedCount = 0;
     let skippedCount = 0;
 
-    emitApplyProgress(onProgress, "Applying patch files", completedCount, entries.length);
+    const pool = createPatchWorkerPool({
+        concurrency: Math.min(concurrency, entries.length),
+        abortSignal
+    });
+
+    emitApplyProgress(onProgress, labelPrefix, completedCount, entries.length);
 
     async function workerLoop() {
         while (true) {
@@ -357,7 +466,7 @@ async function extractPatchArchivesWithPool(options: {
             const archivePath = path.join(patchDir, entry.archiveName);
             const outputPath = resolvePatchOutputPath(installPath, entry.relativeOutputPath);
 
-            const replaced = await extractPatchArchiveInWorker(archivePath, outputPath, `Applying patch file ${fileNumber}`, abortSignal);
+            const replaced = await pool.runJob(archivePath, outputPath, `Applying patch file ${fileNumber}`);
 
             if (replaced)
                 replacedCount += 1;
@@ -368,86 +477,185 @@ async function extractPatchArchivesWithPool(options: {
 
             emitApplyProgress(
                 onProgress,
-                `Applying patch files ${completedCount}/${entries.length} - ${replacedCount} updated, ${skippedCount} unchanged`,
+                `${labelPrefix} ${completedCount}/${entries.length} - ${replacedCount} updated, ${skippedCount} unchanged`,
                 completedCount,
                 entries.length
             );
         }
     }
 
-    const workerCount = Math.min(concurrency, entries.length);
-    await Promise.all(Array.from({ length: workerCount }, () => workerLoop()));
+    try {
+        const workerCount = Math.min(concurrency, entries.length);
+        await Promise.all(Array.from({ length: workerCount }, () => workerLoop()));
 
-    return {
-        replacedCount,
-        skippedCount
-    };
+        return {
+            replacedCount,
+            skippedCount
+        };
+    } finally {
+        await pool.close();
+    }
 }
 
-function extractPatchArchiveInWorker(archivePath: string, outputPath: string, label: string, abortSignal: AbortSignal) {
-    return new Promise<boolean>((resolve, reject) => {
-        const worker = new Worker(new URL("./patchExtractWorker.js", import.meta.url), {
-            workerData: {
-                archivePath,
-                outputPath
-            }
-        });
+function createPatchWorkerPool(options: {
+    concurrency: number;
+    abortSignal: AbortSignal;
+}) {
+    const { concurrency, abortSignal } = options;
+    const workers = Array.from({ length: concurrency }, () => new Worker(new URL("./patchExtractWorker.js", import.meta.url)));
+    const idleWorkers = [...workers];
+    const jobQueue: Array<{
+        jobId: number;
+        archivePath: string;
+        outputPath: string;
+        label: string;
+        resolve: (replaced: boolean) => void;
+        reject: (error: unknown) => void;
+    }> = [];
 
-        let settled = false;
+    const pendingJobs = new Map<number, {
+        worker: Worker;
+        label: string;
+        resolve: (replaced: boolean) => void;
+        reject: (error: unknown) => void;
+    }>();
 
-        const abort = async () => {
-            if (settled)
+    let nextJobId = 1;
+    let closed = false;
+    let closeError: unknown = null;
+
+    function schedule() {
+        if (closed)
+            return;
+
+        while (idleWorkers.length > 0 && jobQueue.length > 0) {
+            const worker = idleWorkers.pop();
+            const job = jobQueue.shift();
+
+            if (!worker || !job)
                 return;
 
-            settled = true;
-            await worker.terminate();
-            reject(new PatchTaskCanceledError());
-        };
+            pendingJobs.set(job.jobId, {
+                worker,
+                label: job.label,
+                resolve: job.resolve,
+                reject: job.reject
+            });
 
-        if (abortSignal.aborted) {
-            void abort();
-            return;
+            worker.postMessage({
+                type: "extract",
+                jobId: job.jobId,
+                archivePath: job.archivePath,
+                outputPath: job.outputPath
+            });
+        }
+    }
+
+    function rejectQueued(error: unknown) {
+        for (const job of jobQueue.splice(0))
+            job.reject(error);
+    }
+
+    function runJob(archivePath: string, outputPath: string, label: string) {
+        if (closed)
+            return Promise.reject(new Error("Patch worker pool is closed."));
+
+        if (abortSignal.aborted)
+            return Promise.reject(new PatchTaskCanceledError());
+
+        return new Promise<boolean>((resolve, reject) => {
+            const jobId = nextJobId;
+            nextJobId += 1;
+
+            jobQueue.push({
+                jobId,
+                archivePath,
+                outputPath,
+                label,
+                resolve,
+                reject
+            });
+
+            schedule();
+        });
+    }
+
+    async function close(error?: unknown) {
+        closed = true;
+        closeError = error ?? null;
+        abortSignal.removeEventListener("abort", abort);
+
+        if (error)
+            rejectQueued(error);
+
+        if (pendingJobs.size > 0) {
+            await Promise.allSettled(
+                workers.map((worker) =>
+                    new Promise<void>((resolve) => {
+                        if (![...pendingJobs.values()].some((job) => job.worker === worker)) {
+                            resolve();
+                            return;
+                        }
+
+                        worker.once("message", () => resolve());
+                        worker.once("error", () => resolve());
+                        worker.once("exit", () => resolve());
+                    })
+                )
+            );
         }
 
-        abortSignal.addEventListener("abort", abort, { once: true });
+        await Promise.all(workers.map((worker) => worker.terminate().catch(() => {})));
+    }
 
-        worker.on("message", (message: { type: string; message?: string; replaced?: boolean }) => {
-            if (message.type === "done" && !settled) {
-                settled = true;
-                abortSignal.removeEventListener("abort", abort);
-                resolve(message.replaced ?? true);
+    const abort = () => {
+        void close(new PatchTaskCanceledError());
+    };
+
+    abortSignal.addEventListener("abort", abort, { once: true });
+
+    for (const worker of workers) {
+        worker.on("message", (message: { type: string; jobId: number; replaced?: boolean; message?: string }) => {
+            const pending = pendingJobs.get(message.jobId);
+            if (!pending)
+                return;
+
+            pendingJobs.delete(message.jobId);
+            idleWorkers.push(worker);
+
+            if (message.type === "done") {
+                if (closeError)
+                    pending.reject(closeError);
+                else
+                    pending.resolve(message.replaced ?? true);
+
+                schedule();
                 return;
             }
 
-            if (message.type === "error" && !settled) {
-                settled = true;
-                abortSignal.removeEventListener("abort", abort);
-                reject(new Error(`${label} failed: ${message.message ?? "Unknown worker error"}`));
+            if (message.type === "error") {
+                const error = new Error(`${pending.label} failed: ${message.message ?? "Unknown worker error"}`);
+                void close(error);
+                pending.reject(error);
             }
         });
 
         worker.on("error", (error) => {
-            if (settled)
-                return;
-
-            settled = true;
-            abortSignal.removeEventListener("abort", abort);
-            reject(error);
+            void close(error);
         });
 
         worker.on("exit", (code) => {
-            if (settled)
+            if (closed || code === 0)
                 return;
 
-            settled = true;
-            abortSignal.removeEventListener("abort", abort);
-
-            if (code === 0)
-                resolve(true);
-            else
-                reject(new Error(`${label} worker exited with code ${code}.`));
+            void close(new Error(`Patch worker exited with code ${code}.`));
         });
-    });
+    }
+
+    return {
+        runJob,
+        close
+    };
 }
 
 async function cleanupPatchArchives(archivePaths: string[]) {

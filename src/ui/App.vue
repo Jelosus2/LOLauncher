@@ -95,22 +95,50 @@ async function handleMainAction() {
             return;
         }
 
-        void gameStore.applyLatestPatch();
+        await ensureGameIsNotRunning(() => {
+            void gameStore.applyLatestPatch();
+        });
         return;
     }
 }
 
-function handleRepairGame() {
-    serviceDialog.value = {
-        title: "Repair Game",
-        message: "Repair will be wired to the patch verification flow later."
-    };
+async function handleRepairGame() {
+    if (gameStore.isRunningTask)
+        return;
+
+    const status = await gameStore.checkMaintenance();
+
+    if (status.isRestrictedCountry) {
+        serviceDialog.value = {
+            title: "Service Unavailable",
+            message: status.message
+        };
+        return;
+    }
+
+    await ensureGameIsNotRunning(() => {
+        void gameStore.repairGame();
+    });
 }
 
 function handleUninstallGame() {
     serviceDialog.value = {
         title: "Uninstall Game",
         message: "Uninstall will be wired after the removal flow is implemented."
+    };
+}
+
+async function ensureGameIsNotRunning(nextAction: () => void) {
+    const isGameRunning = await gameStore.isGameProcessRunning();
+
+    if (!isGameRunning) {
+        nextAction();
+        return;
+    }
+
+    serviceDialog.value = {
+        title: "Game Is Running",
+        message: "Close Last Origin R+ before updating or repairing game files."
     };
 }
 

@@ -30,6 +30,8 @@ export type LauncherApi = {
     pausePatch: () => Promise<void>;
     resumePatch: () => Promise<void>;
     cancelPatch: () => Promise<void>;
+    repairGame: () => Promise<PatchApplyResult>;
+    isGameProcessRunning: () => Promise<boolean>;
     minimizeWindow: () => Promise<void>;
     closeWindow: () => Promise<void>;
 };
