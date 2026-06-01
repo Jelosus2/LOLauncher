@@ -121,11 +121,13 @@ async function handleRepairGame() {
     });
 }
 
-function handleUninstallGame() {
-    serviceDialog.value = {
-        title: "Uninstall Game",
-        message: "Uninstall will be wired after the removal flow is implemented."
-    };
+async function handleUninstallGame() {
+    if (gameStore.isRunningTask)
+        return;
+
+    await ensureGameIsNotRunning(() => {
+        void gameStore.uninstallGame();
+    });
 }
 
 async function ensureGameIsNotRunning(nextAction: () => void) {
@@ -138,7 +140,7 @@ async function ensureGameIsNotRunning(nextAction: () => void) {
 
     serviceDialog.value = {
         title: "Game Is Running",
-        message: "Close Last Origin R+ before updating or repairing game files."
+        message: "Close the game before proceeding."
     };
 }
 

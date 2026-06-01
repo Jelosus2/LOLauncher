@@ -164,6 +164,6 @@ export function runInstaller(installerPath: string) {
     });
 }
 
-function quotePowerShellString(value: string) {
+export function quotePowerShellString(value: string) {
     return `'${value.replaceAll("'", "''")}'`;
 }

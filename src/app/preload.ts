@@ -33,6 +33,7 @@ const launcherApi: LauncherApi = {
     resumePatch: () => ipcRenderer.invoke("patch:resume"),
     cancelPatch: () => ipcRenderer.invoke("patch:cancel"),
     repairGame: () => ipcRenderer.invoke("game:repair"),
+    uninstallGame: () => ipcRenderer.invoke("game:uninstall"),
     isGameProcessRunning: () => ipcRenderer.invoke("game:is-running"),
     minimizeWindow: () => ipcRenderer.invoke("window:minimize"),
     closeWindow: () => ipcRenderer.invoke("window:close")

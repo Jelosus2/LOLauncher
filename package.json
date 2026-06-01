@@ -21,7 +21,6 @@
     "winreg": "^1.2.5"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "^4.3.0",
     "@tsconfig/node22": "^22.0.5",
     "@types/lzma-native": "^4.0.4",
     "@types/node": "^25.9.1",
@@ -29,13 +28,11 @@
     "@vitejs/plugin-vue": "^6.0.7",
     "@vue/eslint-config-typescript": "^14.7.0",
     "@vue/tsconfig": "^0.9.1",
-    "daisyui": "^5.5.20",
     "electron": "^42.2.0",
     "electron-builder": "^26.8.1",
     "eslint": "^10.4.0",
     "eslint-plugin-vue": "^10.9.1",
     "jiti": "^2.7.0",
-    "tailwindcss": "^4.3.0",
     "typescript": "^6.0.3",
     "vite": "^8.0.14",
     "vue-tsc": "^3.3.2"

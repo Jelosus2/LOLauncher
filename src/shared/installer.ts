@@ -18,6 +18,7 @@ export type LauncherTaskStep =
     | "verifying-installer"
     | "running-installer"
     | "patching-game"
+    | "uninstalling-game"
     | "complete"
     | "failed";
 

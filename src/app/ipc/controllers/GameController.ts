@@ -1,9 +1,9 @@
-import { getGameInstallPath, getGameVersionInfo, isGameProcessRunning, assertGameIsNotRunning } from "../../game/gameService.js";
+import { getGameInstallPath, getGameVersionInfo, isGameProcessRunning, assertGameIsNotRunning, runGameUninstaller } from "../../game/gameService.js";
 import { getPatchVersionInfo, applyLatestPatch, repairGameFiles } from "../../game/patchService.js";
 import { checkMaintenanceStatus, assertCanInstallOrPatch } from "../../game/maintenanceService.js";
 import { patchTaskController, PatchTaskCanceledError } from "../../game/patchTaskController.js";
 import { downloadGameInstaller, runInstaller } from "../../game/installerService.js";
-import { shell , type IpcMainInvokeEvent} from "electron";
+import { shell, type IpcMainInvokeEvent } from "electron";
 import { IpcHandle } from "../ipcDecorators.js";
 
 export class GameController {
@@ -58,6 +58,35 @@ export class GameController {
 
             throw error;
         }
+    }
+
+    @IpcHandle("game:uninstall")
+    async uninstallGame(event: IpcMainInvokeEvent) {
+        await assertGameIsNotRunning();
+
+        event.sender.send("installer:progress", {
+            step: "uninstalling-game",
+            label: "Uninstalling...",
+            percent: 100
+        });
+
+        const exitCode = await runGameUninstaller();
+        const installPath = await getGameInstallPath();
+
+        if (exitCode !== 0 || installPath) {
+            event.sender.send("installer:progress", {
+                step: "failed",
+                label: "Uninstall canceled",
+                percent: 100
+            });
+            return;
+        }
+
+        event.sender.send("installer:progress", {
+            step: "complete",
+            label: "Game uninstalled",
+            percent: 100
+        });
     }
 
     @IpcHandle("installer:download-game")

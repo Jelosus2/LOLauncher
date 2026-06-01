@@ -1,7 +1,9 @@
 import type { GameVersionInfo } from "../../shared/game.js";
 
 import { getRegistryGameInstallPath, getRegistryGameFileName } from "./gameRegistry.js";
+import { quotePowerShellString } from "./installerService.js";
 import { getInstalledGameVersion } from "./patchService.js";
+import { spawn } from "node:child_process";
 import findProcess from "find-process";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -63,6 +65,62 @@ export async function assertGameIsNotRunning() {
 
     if (isGameRunning)
         throw new Error("Last Origin R+ is currently running. Close the game before updating or repairing.");
+}
+
+export async function getGameUninstallerPath() {
+    const installPath = await getGameInstallPath();
+    if (!installPath)
+        return null;
+
+    const uninstallerPath = path.join(installPath, "uninst.exe");
+
+    try {
+        const stat = await fs.stat(uninstallerPath);
+        return stat.isFile() ? uninstallerPath : null;
+    } catch {
+        return null;
+    }
+}
+
+export async function runGameUninstaller() {
+    const uninstallerPath = await getGameUninstallerPath();
+    if (!uninstallerPath)
+        throw new Error("Game uninstaller was not found.");
+
+    return runSilentUninstaller(uninstallerPath);
+}
+
+function runSilentUninstaller(uninstallerPath: string) {
+    return new Promise<number>((resolve, reject) => {
+        const child = spawn(
+            "powershell.exe",
+            [
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-Command",
+                [
+                    "$process = Start-Process",
+                    "-FilePath", quotePowerShellString(uninstallerPath),
+                    "-ArgumentList", quotePowerShellString("/S"),
+                    "-Verb", "RunAs",
+                    "-Wait",
+                    "-PassThru;",
+                    "exit $process.ExitCode"
+                ].join(" ")
+            ],
+            {
+                windowsHide: true,
+                stdio: "ignore"
+            }
+        );
+
+        child.on("error", reject);
+
+        child.on("exit", (code) => {
+            resolve(code ?? -1);
+        });
+    });
 }
 
 async function getGameProcessName() {

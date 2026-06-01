@@ -246,6 +246,39 @@ export const useGameStore = defineStore("game", () => {
         }
     }
 
+    async function uninstallGame() {
+        isRunningTask.value = true;
+
+        try {
+            await window.app.uninstallGame();
+
+            installPath.value = null;
+            versionInfo.value = null;
+            gameVersionInfo.value = {
+                gameVersion: null,
+                patchVersion: null
+            };
+
+            await loadInstallPath();
+            await loadPatchVersionInfo();
+        } catch (error) {
+            taskProgress.value = {
+                step: "failed",
+                label: "Uninstall failed",
+                percent: 100
+            };
+
+            await reportError({
+                title: "Uninstall Failed",
+                message: getCleanErrorMessage(error, "Unable to uninstall Last Origin R+."),
+                context: "gameStore.uninstallGame",
+                error
+            });
+        } finally {
+            resetFinishedTaskSoon();
+        }
+    }
+
     async function isGameProcessRunning() {
         try {
             isGameRunning.value = await window.app.isGameProcessRunning();
@@ -297,6 +330,7 @@ export const useGameStore = defineStore("game", () => {
         resumePatch,
         cancelPatch,
         repairGame,
+        uninstallGame,
         isGameProcessRunning
     };
 });
