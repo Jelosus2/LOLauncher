@@ -4,7 +4,7 @@ import type { LauncherTaskProgress } from "../../shared/installer";
 import LauncherSidebar from "./LauncherSidebar.vue";
 import NewsCarousel from "./NewsCarousel.vue";
 import { useLauncherStore } from "../stores/launcherStore";
-import { computed } from "vue";
+import { computed, ref } from "vue";
 
 const props = defineProps<{
     launcherState: "install" | "ready" | "update";
@@ -12,9 +12,11 @@ const props = defineProps<{
     mainActionDisabled?: boolean;
     taskProgress: LauncherTaskProgress
     gameVersionLabel?: string;
+    authUserNickname?: string;
+    authUserId?: string;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
     mainAction: [];
     openModal: ["settings" | "login"];
     repairGame: [];
@@ -22,7 +24,10 @@ defineEmits<{
     pausePatch: [];
     resumePatch: [];
     cancelPatch: [];
+    logout: [];
 }>();
+
+const isUserMenuOpen = ref(false);
 
 const launcherStore = useLauncherStore();
 
@@ -52,6 +57,15 @@ function formatBytes(bytes: number) {
     }
 
     return `${value.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+}
+
+function toggleUserMenu() {
+    isUserMenuOpen.value = !isUserMenuOpen.value;
+}
+
+function logout() {
+    isUserMenuOpen.value = false;
+    emit("logout");
 }
 
 function minimize() {
@@ -97,7 +111,30 @@ function close() {
                     </div>
 
                     <div class="topbar-actions">
-                        <button class="icon-button" title="VFUN Login" @click="$emit('openModal', 'login')">ID</button>
+                        <div class="topbar-user-menu" v-if="authUserNickname">
+                            <button class="user-session-button" @click="toggleUserMenu">
+                                {{ authUserNickname }}
+                            </button>
+
+                            <div v-if="isUserMenuOpen" class="user-session-dropdown">
+                                <div class="user-session-meta">
+                                    <span class="user-session-meta-label">User ID</span>
+                                    <span class="user-session-id">{{ authUserId }}</span>
+                                </div>
+
+                                <button @click="logout">Logout</button>
+                            </div>
+                        </div>
+
+                        <button
+                            v-else
+                            class="icon-button user-icon-button"
+                            title="VFUN Login"
+                            @click="$emit('openModal', 'login')"
+                        >
+                            <span aria-hidden="true"></span>
+                        </button>
+
                         <button class="icon-button" title="Settings" @click="$emit('openModal', 'settings')">&#9881;</button>
                     </div>
                 </header>

@@ -35,6 +35,9 @@ const launcherApi: LauncherApi = {
     repairGame: () => ipcRenderer.invoke("game:repair"),
     uninstallGame: () => ipcRenderer.invoke("game:uninstall"),
     isGameProcessRunning: () => ipcRenderer.invoke("game:is-running"),
+    loginWithGoogle: (rememberLogin) => ipcRenderer.invoke("auth:login-google", rememberLogin),
+    getAuthSession: () => ipcRenderer.invoke("auth:get-session"),
+    logout: () => ipcRenderer.invoke("auth:logout"),
     minimizeWindow: () => ipcRenderer.invoke("window:minimize"),
     closeWindow: () => ipcRenderer.invoke("window:close")
 } as const;

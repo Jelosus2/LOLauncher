@@ -28,3 +28,7 @@ export function getInstallerDirPath(version: string) {
 export function getPatchDirPath(version: number) {
     return path.join(app.getPath("userData"), "patches", String(version));
 }
+
+export function getAuthSessionPath() {
+    return path.join(app.getPath("userData"), "auth-session.bin");
+}

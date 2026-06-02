@@ -7,6 +7,7 @@ import ActionModal from "./components/ActionModal.vue";
 import { useLauncherStore } from "./stores/launcherStore";
 import { useSettingsStore } from "./stores/settingsStore.ts";
 import { useGameStore } from "./stores/gameStore.ts";
+import { useAuthStore } from "./stores/authStore.ts";
 
 type LauncherState = "install" | "ready" | "update";
 type ModalKind = "settings" | "login" | null;
@@ -19,6 +20,7 @@ const serviceDialog = ref<{
 const launcherStore = useLauncherStore();
 const settingsStore = useSettingsStore();
 const gameStore = useGameStore();
+const authStore = useAuthStore();
 
 let unsubscribeInstallerProgress: (() => void) | undefined;
 
@@ -48,8 +50,9 @@ const gameVersionLabel = computed(() => {
 async function handleMainAction() {
     if (gameStore.isRunningTask) return;
 
+    const status = await gameStore.checkMaintenance();
+
     if (launcherState.value === "install") {
-        const status = await gameStore.checkMaintenance();
         if (status.isRestrictedCountry) {
             serviceDialog.value = {
                 title: "Service Unavailable",
@@ -63,8 +66,6 @@ async function handleMainAction() {
     }
 
     if (launcherState.value === "ready") {
-        const status = await gameStore.checkMaintenance();
-
         if (status.isRestrictedCountry) {
             serviceDialog.value = {
                 title: "Service Unavailable",
@@ -85,8 +86,6 @@ async function handleMainAction() {
     }
 
     if (launcherState.value === "update") {
-        const status = await gameStore.checkMaintenance();
-
         if (status.isRestrictedCountry) {
             serviceDialog.value = {
                 title: "Service Unavailable",
@@ -149,6 +148,7 @@ onMounted(() => {
     void settingsStore.loadSettings();
     void gameStore.loadInstallPath();
     void gameStore.loadPatchVersionInfo();
+    void authStore.loadSession();
 
     unsubscribeInstallerProgress = gameStore.subscribeInstallerProgress();
 });
@@ -165,6 +165,8 @@ onUnmounted(() => {
         :main-action-disabled="gameStore.isRunningTask"
         :task-progress="gameStore.taskProgress"
         :game-version-label="gameVersionLabel"
+        :auth-user-nickname="authStore.session?.user.nickname"
+        :auth-user-id="authStore.session?.user.userId"
         @main-action="handleMainAction"
         @open-modal="activeModal = $event"
         @repair-game="handleRepairGame"
@@ -172,6 +174,7 @@ onUnmounted(() => {
         @pause-patch="gameStore.pausePatch"
         @resume-patch="gameStore.resumePatch"
         @cancel-patch="gameStore.cancelPatch"
+        @logout="authStore.logout"
     />
 
     <ActionModal

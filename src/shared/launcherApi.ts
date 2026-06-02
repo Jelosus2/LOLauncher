@@ -5,6 +5,7 @@ import type { LauncherSettings } from "./settings.js";
 import type { GameVersionInfo } from "./game.js";
 import type { LogPayload } from "./logging.js";
 import type { GameNewsItem } from "./news.js";
+import type { AuthSession } from "./auth.js";
 
 export type OpenPathResult = {
     success: boolean;
@@ -33,6 +34,9 @@ export type LauncherApi = {
     repairGame: () => Promise<PatchApplyResult>;
     uninstallGame: () => Promise<void>;
     isGameProcessRunning: () => Promise<boolean>;
+    loginWithGoogle: (rememberLogin: boolean) => Promise<AuthSession>;
+    getAuthSession: () => Promise<AuthSession | null>;
+    logout: () => Promise<void>;
     minimizeWindow: () => Promise<void>;
     closeWindow: () => Promise<void>;
 };

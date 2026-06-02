@@ -328,6 +328,36 @@ button {
     font-weight: 900;
 }
 
+.user-icon-button {
+    position: relative;
+    font-size: 0;
+}
+
+.user-icon-button span::before,
+.user-icon-button span::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.user-icon-button span::before {
+    top: 6px;
+    width: 10px;
+    height: 10px;
+    border: 2px solid currentColor;
+    border-radius: 50%;
+}
+
+.user-icon-button span::after {
+    bottom: 6px;
+    width: 18px;
+    height: 10px;
+    border: 2px solid currentColor;
+    border-bottom: 0;
+    border-radius: 12px 12px 0 0;
+}
+
 .news-carousel {
     width: min(520px, 100%);
     height: min(342px, calc(100vh - 126px));
@@ -872,6 +902,91 @@ button {
     margin: 0 20px 20px;
 }
 
+.login-body {
+    gap: 18px;
+}
+
+.login-provider-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.login-provider-card {
+    min-height: 74px;
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid rgba(92, 64, 42, 0.22);
+    background: rgba(255, 248, 238, 0.54);
+    color: #171311;
+    font-size: 13px;
+    font-weight: 900;
+    text-align: left;
+    text-transform: uppercase;
+}
+
+.login-provider-card:hover,
+.login-provider-card.active {
+    border-color: rgba(255, 147, 69, 0.78);
+    background: rgba(255, 237, 214, 0.88);
+}
+
+.login-provider-mark {
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(92, 64, 42, 0.28);
+    background: rgba(23, 19, 17, 0.88);
+    color: #ffbd7c;
+    font-weight: 950;
+}
+
+.login-provider-mark.google {
+    background-image: url("./sns/google.webp");
+}
+
+.login-provider-mark.facebook {
+    background-image: url("./sns/facebook.png");
+}
+
+.login-provider-mark.apple {
+    background-image: url("./sns/apple.webp");
+}
+
+.login-provider-mark.image-mark {
+    border-color: rgba(92, 64, 42, 0.18);
+    background-color: rgba(255, 255, 255, 0.82);
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 22px 22px;
+}
+
+.login-credential-panel,
+.login-provider-panel {
+    display: grid;
+    gap: 14px;
+}
+
+.login-provider-panel {
+    padding: 14px;
+    border: 1px solid rgba(92, 64, 42, 0.18);
+    background: rgba(255, 248, 238, 0.42);
+}
+
+.login-provider-panel p {
+    margin: 0;
+    color: #3b332d;
+    line-height: 1.4;
+}
+
+.login-remember-row {
+    margin-top: 2px;
+}
+
 .game-version-label {
     margin: auto 0 0;
     color: rgba(238, 248, 248, 0.88);
@@ -901,4 +1016,76 @@ button {
 
 .launcher-progress-actions button:hover {
     background: rgba(255, 248, 238, 0.12);
+}
+
+.topbar-user-menu {
+    position: relative;
+}
+
+.user-session-button {
+    height: 38px;
+    max-width: 168px;
+    padding: 0 14px;
+    border: 1px solid rgba(255, 205, 150, 0.26);
+    background: rgba(20, 16, 13, 0.78);
+    color: #eef8f8;
+    font-size: 12px;
+    font-weight: 900;
+    text-transform: uppercase;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.user-session-dropdown {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 8px);
+    z-index: 8;
+    width: 240px;
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid rgba(255, 205, 150, 0.28);
+    background: rgba(18, 14, 11, 0.94);
+    color: #eef8f8;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.38);
+    backdrop-filter: blur(10px);
+}
+
+.user-session-meta {
+    min-width: 0;
+    display: grid;
+    gap: 4px;
+}
+
+.user-session-meta-label {
+    color: #ffbd7c;
+    font-size: 12px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.user-session-id {
+    max-width: 100%;
+    color: rgba(238, 248, 248, 0.78);
+    font-size: 13px;
+    line-height: 1.25;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.user-session-dropdown button {
+    min-height: 34px;
+    border: 1px solid rgba(255, 205, 150, 0.22);
+    background: rgba(255, 248, 238, 0.08);
+    color: #ffbd9f;
+    font-size: 12px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.user-session-dropdown button:hover {
+    background: rgba(255, 248, 238, 0.14);
 }

@@ -1,21 +1,42 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { useNotificationStore } from "@/stores/notificationStore";
 import { useLauncherStore } from "@/stores/launcherStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useGameStore } from "@/stores/gameStore";
+import { useAuthStore } from "@/stores/authStore";
+import { computed, ref } from "vue";
 
 const props = defineProps<{
     kind: "settings" | "login";
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
     close: [];
 }>();
 
+const loginMode = ref<"vfun" | "google" | "facebook" | "apple">("vfun");
+const title = computed(() => props.kind === "settings" ? "Game Settings" : "VFUN Login");
+
+const notificationStore = useNotificationStore();
 const launcherStore = useLauncherStore();
 const settingsStore = useSettingsStore();
 const gameStore = useGameStore();
-const title = computed(() => props.kind === "settings" ? "Game Settings" : "VFUN Login");
+const authStore = useAuthStore();
+
+async function continueProviderLogin() {
+    if (loginMode.value !== "google")
+        return;
+
+    const session = await authStore.loginWithGoogle(settingsStore.settings.rememberLogin);
+
+    notificationStore.push({
+        level: "info",
+        title: "Login Successful",
+        message: `Signed in as ${session.user.nickname}`
+    });
+
+    emit("close");
+}
 </script>
 
 <template>
@@ -92,22 +113,84 @@ const title = computed(() => props.kind === "settings" ? "Game Settings" : "VFUN
                 <button class="secondary-action">Check Launcher Updates</button>
             </div>
 
-            <div v-else class="modal-body">
-                <label>
-                    VFUN email
-                    <input type="email" placeholder="commander@example.com" />
+            <div v-else class="modal-body login-body">
+                <div class="login-provider-grid">
+                    <button
+                        class="login-provider-card"
+                        :class="{ active: loginMode === 'vfun' }"
+                        @click="loginMode = 'vfun'"
+                    >
+                        <span class="login-provider-mark">ID</span>
+                        <span>VFUN ID</span>
+                    </button>
+
+                    <button
+                        class="login-provider-card"
+                        :class="{ active: loginMode === 'google' }"
+                        @click="loginMode = 'google'"
+                    >
+                        <span class="login-provider-mark image-mark google" aria-hidden="true"></span>
+                        <span>Google</span>
+                    </button>
+
+                    <button
+                        class="login-provider-card"
+                        :class="{ active: loginMode === 'facebook' }"
+                        @click="loginMode = 'facebook'"
+                    >
+                        <span class="login-provider-mark image-mark facebook" aria-hidden="true"></span>
+                        <span>Facebook</span>
+                    </button>
+
+                    <button
+                        class="login-provider-card"
+                        :class="{ active: loginMode === 'apple' }"
+                        @click="loginMode = 'apple'"
+                    >
+                        <span class="login-provider-mark image-mark apple" aria-hidden="true"></span>
+                        <span>Apple</span>
+                    </button>
+                </div>
+
+                <div v-if="loginMode === 'vfun'" class="login-credential-panel">
+                    <label>
+                        VFUN ID
+                        <input type="text" inputmode="numeric" placeholder="VFUN ID" />
+                    </label>
+
+                    <label>
+                        Password
+                        <input type="password" placeholder="Password" />
+                    </label>
+
+                    <button class="secondary-action">Login with VFUN ID</button>
+                </div>
+
+                <div v-else class="login-provider-panel">
+                    <p>
+                        Continue with {{ loginMode.charAt(0).toUpperCase() + loginMode.slice(1) }} in the secure VFUN login window.
+                    </p>
+
+                    <button
+                        class="secondary-action"
+                        :disabled="authStore.isLoggingIn || loginMode !== 'google'"
+                        @click="continueProviderLogin"
+                    >
+                        {{ authStore.isLoggingIn ? "Signing in..." : "Continue" }}
+                    </button>
+                </div>
+
+                <label class="check-row login-remember-row">
+                    <input
+                        type="checkbox"
+                        :checked="settingsStore.settings.rememberLogin"
+                        @change="settingsStore.updateSetting(
+                            'rememberLogin',
+                            ($event.target as HTMLInputElement).checked
+                        )"
+                    />
+                    Remember login
                 </label>
-
-                <label>
-                    Password
-                    <input type="password" placeholder="Password" />
-                </label>
-
-                <p class="muted">
-                    Token handling should be implemented later through Electron IPC, not directly in the renderer.
-                </p>
-
-                <button class="secondary-action">Login</button>
             </div>
         </section>
     </div>

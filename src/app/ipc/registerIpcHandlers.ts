@@ -3,6 +3,7 @@ import { LauncherController } from "./controllers/LauncherController.js";
 import { SettingsController } from "./controllers/SettingsController.js";
 import { WindowController } from "./controllers/WindowController.js";
 import { GameController } from "./controllers/GameController.js";
+import { AuthController } from "./controllers/AuthController.js";
 import { registerIpcController } from "./ipcDecorators.js";
 
 export function registerIpcHandlers() {
@@ -11,4 +12,5 @@ export function registerIpcHandlers() {
     registerIpcController(new SettingsController());
     registerIpcController(new WindowController());
     registerIpcController(new GameController());
+    registerIpcController(new AuthController());
 }
