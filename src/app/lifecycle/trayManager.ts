@@ -16,7 +16,7 @@ export function createOrShowTray(mainWindow: BrowserWindow) {
     if (tray) return tray;
 
     tray = new Tray(getTrayIcon());
-    tray.setToolTip("Last Origin R+");
+    tray.setToolTip("LOLauncher");
 
     tray.setContextMenu(Menu.buildFromTemplate([
         {

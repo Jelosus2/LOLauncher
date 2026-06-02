@@ -37,6 +37,7 @@ export type LauncherApi = {
     loginWithGoogle: (rememberLogin: boolean) => Promise<AuthSession>;
     getAuthSession: () => Promise<AuthSession | null>;
     logout: () => Promise<void>;
+    launchGame: () => Promise<void>;
     minimizeWindow: () => Promise<void>;
     closeWindow: () => Promise<void>;
 };

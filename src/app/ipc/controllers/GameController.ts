@@ -1,9 +1,11 @@
-import { getGameInstallPath, getGameVersionInfo, isGameProcessRunning, assertGameIsNotRunning, runGameUninstaller } from "../../game/gameService.js";
+import { getGameInstallPath, getGameVersionInfo, isGameProcessRunning, assertGameIsNotRunning, runGameUninstaller, launchGame, GameLaunchCanceledError } from "../../game/gameService.js";
+import { checkMaintenanceStatus, assertCanInstallOrPatch, assertCanLaunchGame } from "../../game/maintenanceService.js";
 import { getPatchVersionInfo, applyLatestPatch, repairGameFiles } from "../../game/patchService.js";
-import { checkMaintenanceStatus, assertCanInstallOrPatch } from "../../game/maintenanceService.js";
 import { patchTaskController, PatchTaskCanceledError } from "../../game/patchTaskController.js";
 import { downloadGameInstaller, runInstaller } from "../../game/installerService.js";
-import { shell, type IpcMainInvokeEvent } from "electron";
+import { BrowserWindow, app, shell, type IpcMainInvokeEvent } from "electron";
+import { createOrShowTray } from "../../lifecycle/trayManager.js";
+import { getSettings } from "../../config/settingsService.js";
 import { IpcHandle } from "../ipcDecorators.js";
 
 export class GameController {
@@ -87,6 +89,38 @@ export class GameController {
             label: "Game uninstalled",
             percent: 100
         });
+    }
+
+    @IpcHandle("game:launch")
+    async launchGameProcess(event: IpcMainInvokeEvent) {
+        await assertCanLaunchGame();
+        await assertGameIsNotRunning();
+
+        const mainWindow = BrowserWindow.fromWebContents(event.sender);
+        const settings = await getSettings();
+        let didLauncherHide = false;
+
+        try {
+            await launchGame({
+                onStarted: () => {
+                    if (settings.closeAfterGameStarts && mainWindow && !mainWindow.isDestroyed()) {
+                        createOrShowTray(mainWindow);
+                        mainWindow.hide();
+                        didLauncherHide = true;
+                    }
+                }
+            });
+        } catch (error) {
+            if (error instanceof GameLaunchCanceledError)
+                return;
+
+            throw error;
+        } finally {
+            if (didLauncherHide && mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.show();
+                app.focus({ steal: true });
+            }
+        }
     }
 
     @IpcHandle("installer:download-game")

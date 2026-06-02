@@ -23,6 +23,7 @@ const gameStore = useGameStore();
 const authStore = useAuthStore();
 
 let unsubscribeInstallerProgress: (() => void) | undefined;
+let pendingLoginResolve: ((success: boolean) => void) | undefined;
 
 const launcherState = computed<LauncherState>(() => {
     if (!gameStore.isLoaded) return "ready";
@@ -32,6 +33,9 @@ const launcherState = computed<LauncherState>(() => {
 });
 
 const mainActionLabel = computed(() => {
+    if (gameStore.isLaunchingGame)
+        return "Running...";
+
     if (launcherState.value === "install") return "Install";
     if (launcherState.value === "update") return "Update";
     return "Start Game";
@@ -48,7 +52,7 @@ const gameVersionLabel = computed(() => {
 });
 
 async function handleMainAction() {
-    if (gameStore.isRunningTask) return;
+    if (gameStore.isRunningTask || gameStore.isLaunchingGame) return;
 
     const status = await gameStore.checkMaintenance();
 
@@ -82,7 +86,14 @@ async function handleMainAction() {
             return;
         }
 
-        // launch game later
+        const isLoggedIn = await waitForLogin();
+        if (!isLoggedIn)
+            return;
+
+        await ensureGameIsNotRunning(() => {
+            void gameStore.launchGame();
+        });
+        return;
     }
 
     if (launcherState.value === "update") {
@@ -143,6 +154,36 @@ async function ensureGameIsNotRunning(nextAction: () => void) {
     };
 }
 
+function closeActiveModal() {
+    if (activeModal.value === "login" && pendingLoginResolve) {
+        pendingLoginResolve(false);
+        pendingLoginResolve = undefined;
+    }
+
+    activeModal.value = null;
+}
+
+function handleLoginSuccess() {
+    pendingLoginResolve?.(true);
+    pendingLoginResolve = undefined;
+}
+
+function handleLoginFailed() {
+    pendingLoginResolve?.(false);
+    pendingLoginResolve = undefined;
+}
+
+function waitForLogin() {
+    if (authStore.session)
+        return Promise.resolve(true);
+
+    activeModal.value = "login";
+
+    return new Promise<boolean>((resolve) => {
+        pendingLoginResolve = resolve;
+    });
+}
+
 onMounted(() => {
     void launcherStore.loadLauncherVersion();
     void settingsStore.loadSettings();
@@ -162,7 +203,7 @@ onUnmounted(() => {
     <LauncherShell
         :launcher-state="launcherState"
         :main-action-label="mainActionLabel"
-        :main-action-disabled="gameStore.isRunningTask"
+        :main-action-disabled="gameStore.isRunningTask || gameStore.isLaunchingGame"
         :task-progress="gameStore.taskProgress"
         :game-version-label="gameVersionLabel"
         :auth-user-nickname="authStore.session?.user.nickname"
@@ -180,7 +221,9 @@ onUnmounted(() => {
     <ActionModal
         v-if="activeModal"
         :kind="activeModal"
-        @close="activeModal = null"
+        @close="closeActiveModal"
+        @login-success="handleLoginSuccess"
+        @login-failed="handleLoginFailed"
     />
 
     <ServiceStatusDialog

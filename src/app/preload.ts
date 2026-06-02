@@ -38,6 +38,7 @@ const launcherApi: LauncherApi = {
     loginWithGoogle: (rememberLogin) => ipcRenderer.invoke("auth:login-google", rememberLogin),
     getAuthSession: () => ipcRenderer.invoke("auth:get-session"),
     logout: () => ipcRenderer.invoke("auth:logout"),
+    launchGame: () => ipcRenderer.invoke("game:launch"),
     minimizeWindow: () => ipcRenderer.invoke("window:minimize"),
     closeWindow: () => ipcRenderer.invoke("window:close")
 } as const;

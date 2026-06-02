@@ -12,6 +12,8 @@ const props = defineProps<{
 
 const emit = defineEmits<{
     close: [];
+    loginSuccess: [];
+    loginFailed: [];
 }>();
 
 const loginMode = ref<"vfun" | "google" | "facebook" | "apple">("vfun");
@@ -27,15 +29,20 @@ async function continueProviderLogin() {
     if (loginMode.value !== "google")
         return;
 
-    const session = await authStore.loginWithGoogle(settingsStore.settings.rememberLogin);
+    try {
+        const session = await authStore.loginWithGoogle(settingsStore.settings.rememberLogin);
 
-    notificationStore.push({
-        level: "info",
-        title: "Login Successful",
-        message: `Signed in as ${session.user.nickname}`
-    });
+        notificationStore.push({
+            level: "info",
+            title: "Login Successful",
+            message: `Signed in as ${session.user.nickname}`
+        });
 
-    emit("close");
+        emit("loginSuccess");
+        emit("close");
+    } catch {
+        emit("loginFailed");
+    }
 }
 </script>
 

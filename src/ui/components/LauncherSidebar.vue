@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, onBeforeUnmount, onMounted } from "vue";
 
 const props = defineProps<{
     launcherState: "install" | "ready" | "update";
@@ -15,6 +15,7 @@ const emit = defineEmits<{
     uninstallGame: [];
 }>();
 
+const actionMenuRef = ref<HTMLElement | null>(null);
 const isActionMenuOpen = ref(false);
 
 function runMainAction() {
@@ -38,6 +39,28 @@ function uninstallGame() {
     isActionMenuOpen.value = false;
     emit("uninstallGame");
 }
+
+function handleDocumentPointerDown(event: PointerEvent) {
+    if (!isActionMenuOpen.value)
+        return;
+
+    const target = event.target;
+    if (!(target instanceof Node))
+        return;
+
+    if (actionMenuRef.value?.contains(target))
+        return;
+
+    isActionMenuOpen.value = false;
+}
+
+onMounted(() => {
+    document.addEventListener("pointerdown", handleDocumentPointerDown);
+});
+
+onBeforeUnmount(() => {
+    document.removeEventListener("pointerdown", handleDocumentPointerDown);
+});
 </script>
 
 <template>
@@ -60,6 +83,7 @@ function uninstallGame() {
 
         <div
             v-else
+            ref="actionMenuRef"
             class="main-action-menu"
             :class="{ open: isActionMenuOpen, disabled: mainActionDisabled }"
         >

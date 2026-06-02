@@ -4,7 +4,7 @@ import type { LauncherTaskProgress } from "../../shared/installer";
 import LauncherSidebar from "./LauncherSidebar.vue";
 import NewsCarousel from "./NewsCarousel.vue";
 import { useLauncherStore } from "../stores/launcherStore";
-import { computed, ref } from "vue";
+import { computed, ref, onBeforeUnmount, onMounted } from "vue";
 
 const props = defineProps<{
     launcherState: "install" | "ready" | "update";
@@ -27,6 +27,7 @@ const emit = defineEmits<{
     logout: [];
 }>();
 
+const userMenuRef = ref<HTMLElement | null>(null);
 const isUserMenuOpen = ref(false);
 
 const launcherStore = useLauncherStore();
@@ -75,6 +76,28 @@ function minimize() {
 function close() {
     window.app.closeWindow();
 }
+
+function handleDocumentPointerDown(event: PointerEvent) {
+    if (!isUserMenuOpen.value)
+        return;
+
+    const target = event.target;
+    if (!(target instanceof Node))
+        return;
+
+    if (userMenuRef.value?.contains(target))
+        return;
+
+    isUserMenuOpen.value = false;
+}
+
+onMounted(() => {
+    document.addEventListener("pointerdown", handleDocumentPointerDown);
+});
+
+onBeforeUnmount(() => {
+    document.removeEventListener("pointerdown", handleDocumentPointerDown);
+});
 </script>
 
 <template>
@@ -82,7 +105,7 @@ function close() {
         <header class="app-titlebar">
             <div class="app-title">
                 <span class="app-title-icon" aria-hidden="true"></span>
-                <span>Last Origin R+</span>
+                <span>LOLauncher</span>
                 <span class="app-title-version">{{ launcherStore.launcherVersion || "Unknown" }}</span>
             </div>
 
@@ -111,7 +134,7 @@ function close() {
                     </div>
 
                     <div class="topbar-actions">
-                        <div class="topbar-user-menu" v-if="authUserNickname">
+                        <div v-if="authUserNickname" ref="userMenuRef" class="topbar-user-menu">
                             <button class="user-session-button" @click="toggleUserMenu">
                                 {{ authUserNickname }}
                             </button>

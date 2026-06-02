@@ -40,6 +40,14 @@ type RefreshTokenApiResponse = {
     result: number;
 };
 
+type MakeAuthCodeApiResponse = {
+    result: number;
+    msg: string;
+    data?: {
+        auth_code: string;
+    };
+};
+
 const callbackPort = 5096;
 const callbackHost = "127.0.0.1";
 const googleLoginUrl = "https://vfun.valofe.com/membership/launcher_signin?snstype=G&device=launcher";
@@ -103,6 +111,28 @@ export async function ensureFreshAuthSession(session: StoredAuthSession): Promis
         await saveAuthSession(refreshedSession);
 
     return refreshedSession;
+}
+
+export async function createGameLaunchAuthCode(session: StoredAuthSession) {
+    const deviceId = await getSessionDeviceId();
+
+    const response = await fetch("https://external-api.valofe.com/api/vfun/make_auth_code", {
+        method: "POST",
+        headers: {
+            ...getVfunHeaders(),
+            "Cookie": buildVfunCookie(session.tokens.accessToken, deviceId),
+            "Content-Type": "application/json; charset=UTF-8"
+        }
+    });
+
+    if (!response.ok)
+        throw new Error(`VFUN game auth code request failed: HTTP ${response.status}`);
+
+    const data = await response.json() as MakeAuthCodeApiResponse;
+    if (data.msg !== "success" || data.result !== 1 || !data.data)
+        throw new Error("VFUN game auth code request failed.");
+
+    return data.data.auth_code;
 }
 
 function waitForLauncherCallback() {

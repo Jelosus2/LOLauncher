@@ -29,6 +29,7 @@ export const useGameStore = defineStore("game", () => {
         patchVersion: null
     });
     const isGameRunning = ref(false);
+    const isLaunchingGame = ref(false);
 
     async function loadInstallPath() {
         try {
@@ -297,6 +298,31 @@ export const useGameStore = defineStore("game", () => {
         }
     }
 
+    async function launchGame() {
+        isLaunchingGame.value = true;
+
+        try {
+            await window.app.launchGame();
+        } catch (error) {
+            taskProgress.value = {
+                step: "failed",
+                label: "Launch failed",
+                percent: 100
+            };
+
+            await reportError({
+                title: "Launch Failed",
+                message: getCleanErrorMessage(error, "Unable to launch Last Origin R+."),
+                context: "gameStore.launchGame",
+                error
+            });
+
+            throw error;
+        } finally {
+            isLaunchingGame.value = false;
+        }
+    }
+
     function resetFinishedTaskSoon() {
         setTimeout(() => {
             if (taskProgress.value.step === "complete" || taskProgress.value.step === "failed")
@@ -318,6 +344,7 @@ export const useGameStore = defineStore("game", () => {
         isCheckingVersionInfo,
         gameVersionInfo,
         isGameRunning,
+        isLaunchingGame,
         loadInstallPath,
         checkMaintenance,
         openInstallFolder,
@@ -331,6 +358,7 @@ export const useGameStore = defineStore("game", () => {
         cancelPatch,
         repairGame,
         uninstallGame,
-        isGameProcessRunning
+        isGameProcessRunning,
+        launchGame
     };
 });
