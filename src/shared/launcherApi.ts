@@ -1,3 +1,4 @@
+import type { AuthSession, VfunCredentialLoginRequest, VfunLoginResult, VfunOtpVerifyRequest } from "./auth.js";
 import type { PatchVersionInfo, PatchApplyResult } from "./patch.js";
 import type { LauncherTaskProgress } from "./installer.js";
 import type { MaintenanceStatus } from "./maintenance.js";
@@ -5,7 +6,6 @@ import type { LauncherSettings } from "./settings.js";
 import type { GameVersionInfo } from "./game.js";
 import type { LogPayload } from "./logging.js";
 import type { GameNewsItem } from "./news.js";
-import type { AuthSession } from "./auth.js";
 
 export type OpenPathResult = {
     success: boolean;
@@ -34,7 +34,9 @@ export type LauncherApi = {
     repairGame: () => Promise<PatchApplyResult>;
     uninstallGame: () => Promise<void>;
     isGameProcessRunning: () => Promise<boolean>;
-    loginWithGoogle: (rememberLogin: boolean) => Promise<AuthSession>;
+    loginWithGoogle: (rememberLogin: boolean) => Promise<VfunLoginResult>;
+    loginWithVfunId: (request: VfunCredentialLoginRequest) => Promise<VfunLoginResult>;
+    verifyVfunOtp: (request: VfunOtpVerifyRequest) => Promise<AuthSession>;
     getAuthSession: () => Promise<AuthSession | null>;
     logout: () => Promise<void>;
     launchGame: () => Promise<void>;

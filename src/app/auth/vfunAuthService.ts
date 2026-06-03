@@ -1,4 +1,4 @@
-import type { AuthSession, StoredAuthSession, VfunTokenResponse, VfunUserInfo } from "../../shared/auth.js";
+import type { AuthSession, AuthProvider, StoredAuthSession, VfunTokenResponse, VfunUserInfo, VfunCredentialLoginRequest, VfunLoginResult, VfunOtpVerifyRequest } from "../../shared/auth.js";
 
 import { saveAuthSession, setMemoryAuthSession, toPublicAuthSession } from "./authStorageService.js";
 import { BrowserWindow } from "electron";
@@ -48,14 +48,39 @@ type MakeAuthCodeApiResponse = {
     };
 };
 
+type VfunLoginApiResponse = {
+    result: number;
+    msg?: string;
+    data?: {
+        user_id: string;
+        nickName: string;
+    };
+};
+
+type VfunOtpVerifyApiResponse = {
+    result: number;
+    msg?: string;
+    data?: {
+        user_id: string;
+        nickName: string;
+    };
+};
+
 const callbackPort = 5096;
 const callbackHost = "127.0.0.1";
 const googleLoginUrl = "https://vfun.valofe.com/membership/launcher_signin?snstype=G&device=launcher";
+const vfunLoginResultCodes = {
+    success: 1,
+    accountMissing: -109,
+    invalidCredentials: -96,
+    otpRequired: 4073,
+    otpFailed: 4076
+} as const;
 
 let cachedDeviceId: string | null = null;
 let pendingDeviceId: Promise<string> | null = null;
 
-export async function loginWithGoogle(rememberLogin: boolean): Promise<AuthSession> {
+export async function loginWithGoogle(rememberLogin: boolean): Promise<VfunLoginResult> {
     const callbackPromise = waitForLauncherCallback();
     const authWindow = createAuthWindow();
 
@@ -68,6 +93,17 @@ export async function loginWithGoogle(rememberLogin: boolean): Promise<AuthSessi
         if (!callback.auth_code)
             throw new Error("Google login callback did not include auth_code.");
 
+        if (callback.vfun_use_otp === "1") {
+            if (!callback.user_id)
+                throw new Error("Google OTP callback did not include user_id.");
+
+            return {
+                needsOtp: true,
+                provider: "google",
+                userId: callback.user_id
+            };
+        }
+
         const tokens = await getVfunToken(callback.auth_code);
         const user = await getVfunUserInfo(tokens.accessToken);
 
@@ -79,11 +115,7 @@ export async function loginWithGoogle(rememberLogin: boolean): Promise<AuthSessi
             rememberLogin
         };
 
-        setMemoryAuthSession(session);
-
-        if (rememberLogin)
-            await saveAuthSession(session);
-
+        await persistAuthSession(session);
         return toPublicAuthSession(session);
     } catch (error) {
         if (!authWindow.isDestroyed())
@@ -91,6 +123,98 @@ export async function loginWithGoogle(rememberLogin: boolean): Promise<AuthSessi
 
         throw error;
     }
+}
+
+export async function loginWithVfunId(request: VfunCredentialLoginRequest): Promise<VfunLoginResult> {
+    const response = await fetch("https://external-api.valofe.com/api/vfun/login", {
+        method: "POST",
+        headers: {
+            ...getVfunHeaders(),
+            "Device": "launcher",
+            "Content-Type": "application/json; charset=UTF-8"
+        },
+        body: JSON.stringify({
+            service_code: "vfun",
+            input_user_id: request.userId,
+            input_user_password: request.password
+        })
+    });
+
+    if (!response.ok)
+        throw new Error(`VFUN login request failed: HTTP ${response.status}`);
+
+    const data = await response.json() as VfunLoginApiResponse;
+
+    if (data.result === vfunLoginResultCodes.otpRequired) {
+         if (!data.data?.user_id)
+            throw new Error("VFUN OTP login response did not include a user id.");
+
+        return {
+            needsOtp: true,
+            provider: "vfun",
+            userId: data.data.user_id
+        };
+    }
+
+    if (data.result === vfunLoginResultCodes.accountMissing)
+        throw new Error("The VFUN account does not exist.");
+    if (data.result === vfunLoginResultCodes.invalidCredentials)
+        throw new Error("The VFUN ID or password is incorrect.");
+    if (data.result !== vfunLoginResultCodes.success || !data.data)
+        throw new Error("VFUN login failed.");
+
+    const setCookieHeaders = response.headers.getSetCookie();
+    const tokens = getVfunTokensFromSetCookie(setCookieHeaders, "login");
+
+    const session = createStoredVfunSession({
+        provider: "vfun",
+        userId: data.data.user_id,
+        nickname: data.data.nickName || "User",
+        tokens,
+        rememberLogin: request.rememberLogin
+    });
+
+    await persistAuthSession(session);
+    return toPublicAuthSession(session);
+}
+
+export async function verifyVfunOtp(request: VfunOtpVerifyRequest): Promise<AuthSession> {
+    const response = await fetch("https://external-api.valofe.com/api/vfun/otp/verify_otp", {
+        method: "POST",
+        headers: {
+            ...getVfunHeaders(),
+            "Device": "launcher",
+            "Content-Type": "application/json; charset=UTF-8"
+        },
+        body: JSON.stringify({
+            otp: request.otp,
+            user_id: request.userId
+        })
+    });
+
+    if (!response.ok)
+        throw new Error(`VFUN OTP verification failed: HTTP ${response.status}`);
+
+    const data = await response.json() as VfunOtpVerifyApiResponse;
+
+    if (data.result === vfunLoginResultCodes.otpFailed)
+        throw new Error("The OTP code is incorrect.");
+    if (data.result !== vfunLoginResultCodes.success)
+        throw new Error("VFUN OTP verification failed.");
+
+    const setCookieHeaders = response.headers.getSetCookie();
+    const tokens = getVfunTokensFromSetCookie(setCookieHeaders, "OTP verification");
+
+    const session = createStoredVfunSession({
+        provider: request.provider,
+        userId: data.data?.user_id || request.userId,
+        nickname: data.data?.nickName || "User",
+        tokens,
+        rememberLogin: request.rememberLogin
+    });
+
+    await persistAuthSession(session);
+    return toPublicAuthSession(session);
 }
 
 export async function ensureFreshAuthSession(session: StoredAuthSession): Promise<StoredAuthSession> {
@@ -105,11 +229,7 @@ export async function ensureFreshAuthSession(session: StoredAuthSession): Promis
         accessTokenExpiresAt: refreshedTokens.expiresIn
     };
 
-    setMemoryAuthSession(refreshedSession);
-
-    if (refreshedSession.rememberLogin)
-        await saveAuthSession(refreshedSession);
-
+    await persistAuthSession(refreshedSession);
     return refreshedSession;
 }
 
@@ -249,12 +369,7 @@ async function getVfunUserInfo(accessToken: string): Promise<VfunUserInfo> {
 
     return {
         userId: data.data.user_id,
-        userSerial: data.data.user_serial,
-        nickname: data.data.nickName,
-        birthday: data.data.birthday,
-        email: data.data.email,
-        firstName: data.data.f_name,
-        lastName: data.data.l_name
+        nickname: data.data.nickName || "User"
     };
 }
 
@@ -278,17 +393,47 @@ async function refreshVfunToken(refreshToken: string): Promise<VfunTokenResponse
         throw new Error("VFUN token refresh failed.");
 
     const setCookieHeaders = response.headers.getSetCookie();
-    const accessToken = getCookieValue(setCookieHeaders, "L-Access-Token");
-    const nextRefreshToken = getCookieValue(setCookieHeaders, "L-Refresh-Token") ?? refreshToken;
+    return getVfunTokensFromSetCookie(setCookieHeaders, "token refresh");
+}
 
-    if (!accessToken)
-        throw new Error("VFUN token refresh did not return an access token.");
+function getVfunTokensFromSetCookie(setCookieHeaders: string[], label: string): VfunTokenResponse {
+    const accessToken = getCookieValue(setCookieHeaders, "L-Access-Token");
+    const refreshToken = getCookieValue(setCookieHeaders, "L-Refresh-Token");
+
+    if (!accessToken || !refreshToken)
+        throw new Error(`VFUN ${label} response did not include session tokens.`);
 
     return {
         accessToken,
-        refreshToken: nextRefreshToken,
+        refreshToken,
         expiresIn: getJwtExpiration(accessToken)
     };
+}
+
+function createStoredVfunSession(input: {
+    provider: AuthProvider,
+    userId: string;
+    nickname: string;
+    tokens: VfunTokenResponse;
+    rememberLogin: boolean;
+}): StoredAuthSession {
+    return {
+        provider: input.provider,
+        user: {
+            userId: input.userId,
+            nickname: input.nickname
+        },
+        tokens: input.tokens,
+        accessTokenExpiresAt: input.tokens.expiresIn,
+        rememberLogin: input.rememberLogin
+    };
+}
+
+async function persistAuthSession(session: StoredAuthSession) {
+    setMemoryAuthSession(session);
+
+    if (session.rememberLogin)
+        await saveAuthSession(session);
 }
 
 function shouldRefreshAccessToken(session: StoredAuthSession) {

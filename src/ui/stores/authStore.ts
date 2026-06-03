@@ -1,6 +1,7 @@
-import type { AuthSession } from "../../shared/auth";
+import type { AuthSession, VfunCredentialLoginRequest, VfunOtpVerifyRequest } from "../../shared/auth";
 
 import { reportError } from "@/services/errorReporter";
+import { getCleanErrorMessage } from "@/utils/errors";
 import { defineStore } from "pinia";
 import { ref } from "vue";
 
@@ -30,13 +31,61 @@ export const useAuthStore = defineStore("auth", () => {
         isLoggingIn.value = true;
 
         try {
-            session.value = await window.app.loginWithGoogle(rememberLogin);
-            return session.value;
+            const result = await window.app.loginWithGoogle(rememberLogin);
+            if ("needsOtp" in result)
+                return result;
+
+            session.value = result;
+            return result;
         } catch (error) {
             await reportError({
                 title: "Google Login Failed",
-                message: "Unable to sign in with Google.",
+                message: getCleanErrorMessage(error, "Unable to sign in with Google."),
                 context: "authStore.loginWithGoogle",
+                error
+            });
+
+            throw error;
+        } finally {
+            isLoggingIn.value = false;
+        }
+    }
+
+    async function loginWithVfunId(request: VfunCredentialLoginRequest) {
+        isLoggingIn.value = true;
+
+        try {
+            const result = await window.app.loginWithVfunId(request);
+            if ("needsOtp" in result)
+                return result;
+
+            session.value = result;
+            return result;
+        } catch (error) {
+            await reportError({
+                title: "VFUN Login Failed",
+                message: getCleanErrorMessage(error, "The VFUN ID or password is incorrect."),
+                context: "authStore.loginWithVfunId",
+                error
+            });
+
+            throw error;
+        } finally {
+            isLoggingIn.value = false;
+        }
+    }
+
+    async function verifyVfunOtp(request: VfunOtpVerifyRequest) {
+        isLoggingIn.value = true;
+
+        try {
+            session.value = await window.app.verifyVfunOtp(request);
+            return session.value;
+        } catch (error) {
+            await reportError({
+                title: "OTP Verification Failed",
+                message: getCleanErrorMessage(error, "The OTP code is incorrect."),
+                context: "authStore.verifyVfunOtp",
                 error
             });
 
@@ -57,6 +106,8 @@ export const useAuthStore = defineStore("auth", () => {
         isLoaded,
         loadSession,
         loginWithGoogle,
+        loginWithVfunId,
+        verifyVfunOtp,
         logout
     };
 });

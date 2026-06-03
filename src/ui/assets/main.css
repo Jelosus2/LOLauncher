@@ -666,6 +666,23 @@ button {
     font-weight: 800;
 }
 
+.secondary-action:disabled,
+.secondary-action[disabled] {
+    cursor: default;
+    opacity: 0.48;
+    filter: grayscale(0.35);
+    box-shadow: none;
+    transform: none;
+}
+
+.secondary-action:disabled:hover,
+.secondary-action[disabled]:hover {
+    opacity: 0.48;
+    filter: grayscale(0.35);
+    box-shadow: none;
+    transform: none;
+}
+
 .app-frame {
     position: relative;
     width: 100vw;
@@ -1088,4 +1105,17 @@ button {
 
 .user-session-dropdown button:hover {
     background: rgba(255, 248, 238, 0.14);
+}
+
+.text-action {
+    border: 0;
+    background: transparent;
+    color: rgba(255, 188, 128, 0.95);
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.text-action:disabled {
+    cursor: default;
+    opacity: 0.55;
 }

@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import type { VfunLoginResult } from "../../shared/auth";
+
 import { useNotificationStore } from "@/stores/notificationStore";
 import { useLauncherStore } from "@/stores/launcherStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useGameStore } from "@/stores/gameStore";
 import { useAuthStore } from "@/stores/authStore";
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 
 const props = defineProps<{
     kind: "settings" | "login";
@@ -16,38 +18,145 @@ const emit = defineEmits<{
     loginFailed: [];
 }>();
 
-const loginMode = ref<"vfun" | "google" | "facebook" | "apple">("vfun");
-const title = computed(() => props.kind === "settings" ? "Game Settings" : "VFUN Login");
-
 const notificationStore = useNotificationStore();
 const launcherStore = useLauncherStore();
 const settingsStore = useSettingsStore();
 const gameStore = useGameStore();
 const authStore = useAuthStore();
 
+const loginMode = ref<"vfun" | "google" | "facebook" | "apple">("vfun");
+const vfunUserId = ref(settingsStore.settings.rememberedVfunId);
+const vfunPassword = ref("");
+const pendingOtp = ref<{
+    provider: "vfun" | "google";
+    userId: string;
+} | null>(null);
+const otpCode = ref("");
+
+const title = computed(() => props.kind === "settings" ? "Game Settings" : "VFUN Login");
+const isOtpStep = computed(() => !!pendingOtp.value);
+
+const canSubmitVfunLogin = computed(() => {
+    return !authStore.isLoggingIn && !!vfunUserId.value.trim() && !!vfunPassword.value;
+});
+
+const canSubmitOtp = computed(() => {
+    return !authStore.isLoggingIn && /^\d{6}$/.test(otpCode.value);
+});
+
+watch(() => settingsStore.settings.rememberedVfunId, (rememberedVfunId) => {
+    if (!vfunUserId.value)
+        vfunUserId.value = rememberedVfunId;
+}, { immediate: true });
+
+watch(loginMode, () => {
+    pendingOtp.value = null;
+    otpCode.value = "";
+});
+
 async function continueProviderLogin() {
-    if (loginMode.value !== "google")
+    if (isOtpStep.value) {
+        await continueOtpVerification();
         return;
+    }
 
+    if (loginMode.value === "google") {
+        await continueGoogleLogin();
+        return;
+    }
+
+    if (loginMode.value === "vfun") {
+        await continueVfunCredentialLogin();
+        return;
+    }
+}
+
+async function continueGoogleLogin() {
     try {
-        const session = await authStore.loginWithGoogle(settingsStore.settings.rememberLogin);
-
-        notificationStore.push({
-            level: "info",
-            title: "Login Successful",
-            message: `Signed in as ${session.user.nickname}`
-        });
-
-        emit("loginSuccess");
-        emit("close");
+        const result = await authStore.loginWithGoogle(settingsStore.settings.rememberLogin);
+        await handleLoginResult(result);
     } catch {
         emit("loginFailed");
     }
 }
+
+async function continueVfunCredentialLogin() {
+    try {
+        const result = await authStore.loginWithVfunId({
+            userId: vfunUserId.value.trim(),
+            password: vfunPassword.value,
+            rememberLogin: settingsStore.settings.rememberLogin
+        });
+
+        await handleLoginResult(result);
+    } catch {
+        emit("loginFailed");
+    }
+}
+
+async function continueOtpVerification() {
+    if (!pendingOtp.value)
+        return;
+
+    try {
+        const session = await authStore.verifyVfunOtp({
+            provider: pendingOtp.value.provider,
+            userId: pendingOtp.value.userId,
+            otp: otpCode.value,
+            rememberLogin: settingsStore.settings.rememberLogin
+        });
+
+        await finishSuccessfulLogin(session);
+    } catch {
+        emit("loginFailed");
+    }
+}
+
+async function finishSuccessfulLogin(session: { user: { nickname: string } }) {
+    if (loginMode.value === "vfun")
+        await settingsStore.updateSetting("rememberedVfunId", vfunUserId.value.trim());
+
+    notificationStore.push({
+        level: "info",
+        title: "Login Successful",
+        message: `Signed in as ${session.user.nickname}`
+    });
+
+    vfunPassword.value = "";
+    otpCode.value = "";
+    pendingOtp.value = null;
+
+    emit("loginSuccess");
+    emit("close");
+}
+
+async function handleLoginResult(result: VfunLoginResult) {
+    if ("needsOtp" in result) {
+        pendingOtp.value = {
+            provider: result.provider,
+            userId: result.userId
+        };
+        otpCode.value = "";
+
+        notificationStore.push({
+            level: "info",
+            title: "OTP Required",
+            message: "Enter the 6-digit OTP code for this account."
+        });
+        return;
+    }
+
+    await finishSuccessfulLogin(result);
+}
+
+function updateOtpCode(event: Event) {
+    const input = event.target as HTMLInputElement;
+    otpCode.value = input.value.replace(/\D/g, "").slice(0, 6);
+}
 </script>
 
 <template>
-    <div class="modal-backdrop" @click.self="$emit('close')">
+    <div class="modal-backdrop">
         <section class="modal-panel">
             <header>
                 <h2>{{ title }}</h2>
@@ -160,31 +269,109 @@ async function continueProviderLogin() {
                 </div>
 
                 <div v-if="loginMode === 'vfun'" class="login-credential-panel">
-                    <label>
-                        VFUN ID
-                        <input type="text" inputmode="numeric" placeholder="VFUN ID" />
-                    </label>
+                    <template v-if="!isOtpStep">
+                        <label>
+                            VFUN ID
+                            <input
+                                v-model="vfunUserId"
+                                type="text"
+                                autocomplete="username"
+                                placeholder="VFUN ID"
+                                @keydown.enter="continueProviderLogin"
+                            />
+                        </label>
 
-                    <label>
-                        Password
-                        <input type="password" placeholder="Password" />
-                    </label>
+                        <label>
+                            Password
+                            <input
+                                v-model="vfunPassword"
+                                type="password"
+                                autocomplete="current-password"
+                                placeholder="Password"
+                                @keydown.enter="continueProviderLogin"
+                            />
+                        </label>
 
-                    <button class="secondary-action">Login with VFUN ID</button>
+                        <button
+                            class="secondary-action"
+                            :disabled="!canSubmitVfunLogin"
+                            @click="continueProviderLogin"
+                        >
+                            {{ authStore.isLoggingIn ? "Signing in..." : "Login with VFUN ID" }}
+                        </button>
+                    </template>
+
+                    <template v-else>
+                        <label>
+                            OTP Code
+                            <input
+                                v-model="otpCode"
+                                type="text"
+                                inputmode="numeric"
+                                maxlength="6"
+                                autocomplete="one-time-code"
+                                placeholder="6-digit code"
+                                @input="updateOtpCode"
+                                @keydown.enter="continueProviderLogin"
+                            />
+                        </label>
+
+                        <button
+                            class="secondary-action"
+                            :disabled="!canSubmitOtp"
+                            @click="continueProviderLogin"
+                        >
+                            {{ authStore.isLoggingIn ? "Verifying..." : "Verify OTP" }}
+                        </button>
+
+                        <button
+                            class="text-action"
+                            :disabled="authStore.isLoggingIn"
+                            @click="pendingOtp = null; otpCode = ''"
+                        >
+                            Back to login
+                        </button>
+                    </template>
                 </div>
 
                 <div v-else class="login-provider-panel">
-                    <p>
-                        Continue with {{ loginMode.charAt(0).toUpperCase() + loginMode.slice(1) }} in the secure VFUN login window.
-                    </p>
+                    <template v-if="!isOtpStep">
+                        <p>
+                            Continue with {{ loginMode.charAt(0).toUpperCase() + loginMode.slice(1) }} in the secure VFUN login window.
+                        </p>
 
-                    <button
-                        class="secondary-action"
-                        :disabled="authStore.isLoggingIn || loginMode !== 'google'"
-                        @click="continueProviderLogin"
-                    >
-                        {{ authStore.isLoggingIn ? "Signing in..." : "Continue" }}
-                    </button>
+                        <button
+                            class="secondary-action"
+                            :disabled="authStore.isLoggingIn || loginMode !== 'google'"
+                            @click="continueProviderLogin"
+                        >
+                            {{ authStore.isLoggingIn ? "Signing in..." : "Continue" }}
+                        </button>
+                    </template>
+
+                    <template v-else>
+                        <label>
+                            OTP Code
+                            <input
+                                v-model="otpCode"
+                                type="text"
+                                inputmode="numeric"
+                                maxlength="6"
+                                autocomplete="one-time-code"
+                                placeholder="6-digit code"
+                                @input="updateOtpCode"
+                                @keydown.enter="continueProviderLogin"
+                            />
+                        </label>
+
+                        <button
+                            class="secondary-action"
+                            :disabled="!canSubmitOtp"
+                            @click="continueProviderLogin"
+                        >
+                            {{ authStore.isLoggingIn ? "Verifying..." : "Verify OTP" }}
+                        </button>
+                    </template>
                 </div>
 
                 <label class="check-row login-remember-row">

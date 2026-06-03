@@ -1,11 +1,6 @@
 export type VfunUserInfo = {
     userId: string;
-    userSerial: string;
     nickname: string;
-    birthday: string;
-    email: string;
-    firstName: string;
-    lastName: string;
 };
 
 export type VfunTokenResponse = {
@@ -14,8 +9,31 @@ export type VfunTokenResponse = {
     expiresIn: number | null;
 };
 
+export type AuthProvider = "vfun" | "google";
+
+export type VfunCredentialLoginRequest = {
+    userId: string;
+    password: string;
+    rememberLogin: boolean;
+};
+
+export type AuthOtpChallenge = {
+    needsOtp: true;
+    provider: AuthProvider;
+    userId: string;
+};
+
+export type VfunOtpVerifyRequest = {
+    provider: AuthProvider;
+    userId: string;
+    otp: string;
+    rememberLogin: boolean;
+};
+
+export type VfunLoginResult = AuthSession | AuthOtpChallenge;
+
 export type AuthSession = {
-    provider: "google";
+    provider: AuthProvider;
     user: VfunUserInfo;
     accessTokenExpiresAt?: number | null;
 };
