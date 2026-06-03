@@ -1,3 +1,5 @@
+import { getSettings } from "../config/settingsService.js";
+import { applyStartupSetting } from "./startupService.js";
 import { markAppAsQuitting } from "./trayManager.js";
 import { app, BrowserWindow, Menu } from "electron";
 
@@ -7,6 +9,9 @@ export function registerAppLifecycle(createMainWindow: WindowFactory) {
     app.whenReady().then(async () => {
         if (app.isPackaged)
             Menu.setApplicationMenu(null);
+
+        const settings = await getSettings();
+        applyStartupSetting(settings.startOnSystemStartup);
 
         await createMainWindow();
 

@@ -5,11 +5,13 @@ export type LauncherSettings = {
     closeAction: CloseAction;
     rememberLogin: boolean;
     rememberedVfunId: string;
+    startOnSystemStartup: boolean;
 };
 
 export const defaultLauncherSettings: LauncherSettings = {
     closeAfterGameStarts: false,
     closeAction: "tray",
     rememberLogin: false,
-    rememberedVfunId: ""
+    rememberedVfunId: "",
+    startOnSystemStartup: false
 };

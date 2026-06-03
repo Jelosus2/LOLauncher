@@ -183,6 +183,18 @@ function updateOtpCode(event: Event) {
                     </div>
                 </label>
 
+                <label class="check-row">
+                    <input
+                        type="checkbox"
+                        :checked="settingsStore.settings.startOnSystemStartup"
+                        @change="settingsStore.updateSetting(
+                            'startOnSystemStartup',
+                            ($event.target as HTMLInputElement).checked
+                        )"
+                    />
+                    Start launcher on system startup
+                </label>
+
                 <fieldset class="settings-group">
                     <legend>Close settings</legend>
 
