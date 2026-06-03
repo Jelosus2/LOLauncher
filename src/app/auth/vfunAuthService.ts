@@ -1,4 +1,15 @@
-import type { AuthSession, AuthProvider, StoredAuthSession, VfunTokenResponse, VfunUserInfo, VfunCredentialLoginRequest, VfunLoginResult, VfunOtpVerifyRequest } from "../../shared/auth.js";
+import type {
+    AuthSession,
+    AuthProvider,
+    StoredAuthSession,
+    VfunTokenResponse,
+    VfunUserInfo,
+    VfunCredentialLoginRequest,
+    VfunLoginResult,
+    VfunOtpVerifyRequest,
+    SnsAuthProvider,
+    SnsLoginRequest
+} from "../../shared/auth.js";
 
 import { saveAuthSession, setMemoryAuthSession, toPublicAuthSession } from "./authStorageService.js";
 import { BrowserWindow } from "electron";
@@ -68,7 +79,6 @@ type VfunOtpVerifyApiResponse = {
 
 const callbackPort = 5096;
 const callbackHost = "127.0.0.1";
-const googleLoginUrl = "https://vfun.valofe.com/membership/launcher_signin?snstype=G&device=launcher";
 const vfunLoginResultCodes = {
     success: 1,
     accountMissing: -109,
@@ -77,47 +87,77 @@ const vfunLoginResultCodes = {
     otpFailed: 4076
 } as const;
 
+const snsProviderConfigs: Record<SnsAuthProvider, { label: string; url: string; }> = {
+    google: {
+        label: "Google",
+        url: "https://vfun.valofe.com/membership/launcher_signin?snstype=G&device=launcher"
+    },
+    facebook: {
+        label: "Facebook",
+        url: "https://vfun.valofe.com/membership/launcher_signin?snstype=F&device=launcher"
+    },
+    apple: {
+        label: "Apple",
+        url: "https://vfun.valofe.com/membership/launcher_signin?snstype=A&device=launcher"
+    }
+};
+
 let cachedDeviceId: string | null = null;
 let pendingDeviceId: Promise<string> | null = null;
 
-export async function loginWithGoogle(rememberLogin: boolean): Promise<VfunLoginResult> {
+export async function loginWithSns(request: SnsLoginRequest): Promise<VfunLoginResult> {
+    const config = snsProviderConfigs[request.provider];
     const callbackPromise = waitForLauncherCallback();
-    const authWindow = createAuthWindow();
+    const authWindow = createAuthWindow(config.label);
 
-    authWindow.loadURL(googleLoginUrl);
+    const windowClosedPromise = new Promise<never>((_, reject) => {
+        authWindow.once("closed", () => {
+            callbackPromise.cleanup();
+            reject(new Error("SNS login was canceled"));
+        });
+    });
+
+    authWindow.loadURL(config.url);
 
     try {
-        const callback = await callbackPromise;
-        authWindow.close();
+        const callback = await Promise.race([
+            callbackPromise.promise,
+            windowClosedPromise
+        ]);
 
-        if (!callback.auth_code)
-            throw new Error("Google login callback did not include auth_code.");
+        if (!authWindow.isDestroyed())
+            authWindow.close();
 
         if (callback.vfun_use_otp === "1") {
             if (!callback.user_id)
-                throw new Error("Google OTP callback did not include user_id.");
+                throw new Error(`${config.label} OTP callback did not include user_id.`);
 
             return {
                 needsOtp: true,
-                provider: "google",
+                provider: request.provider,
                 userId: callback.user_id
             };
         }
 
+        if (!callback.auth_code)
+            throw new Error(`${config.label} login callback did not include auth_code.`);
+
         const tokens = await getVfunToken(callback.auth_code);
         const user = await getVfunUserInfo(tokens.accessToken);
 
-        const session: StoredAuthSession = {
-            provider: "google",
-            user,
+        const session = createStoredVfunSession({
+            provider: request.provider,
+            userId: user.userId,
+            nickname: user.nickname || "User",
             tokens,
-            accessTokenExpiresAt: tokens.expiresIn,
-            rememberLogin
-        };
+            rememberLogin: request.rememberLogin
+        });
 
         await persistAuthSession(session);
         return toPublicAuthSession(session);
     } catch (error) {
+        callbackPromise.cleanup();
+
         if (!authWindow.isDestroyed())
             authWindow.close();
 
@@ -256,13 +296,35 @@ export async function createGameLaunchAuthCode(session: StoredAuthSession) {
 }
 
 function waitForLauncherCallback() {
-    return new Promise<LauncherCallbackQuery>((resolve, reject) => {
-        const timeout = setTimeout(() => {
+    let settled = false;
+
+    let server: http.Server | null = null;
+    let timeout: NodeJS.Timeout | null = null;
+
+    function cleanup() {
+        if (settled)
+            return;
+
+        settled = true;
+
+        if (timeout) {
+            clearTimeout(timeout);
+            timeout = null;
+        }
+
+        if (server?.listening)
             server.close();
-            reject(new Error("Google login timed out."));
+
+        server = null;
+    }
+
+    const promise = new Promise<LauncherCallbackQuery>((resolve, reject) => {
+        timeout = setTimeout(() => {
+            cleanup();
+            reject(new Error("SNS login timed out."));
         }, 300_000);
 
-        const server = http.createServer((request, response) => {
+        server = http.createServer((request, response) => {
             try {
                 const requestUrl = new URL(request.url ?? "/", `http://${callbackHost}:${callbackPort}`);
                 const query: LauncherCallbackQuery = {
@@ -286,31 +348,33 @@ function waitForLauncherCallback() {
                     </html>
                 `);
 
-                clearTimeout(timeout);
-                server.close();
-
+                cleanup();
                 resolve(query);
             } catch (error) {
-                clearTimeout(timeout);
-                server.close();
+                cleanup();
                 reject(error);
             }
         });
 
         server.once("error", (error) => {
-            clearTimeout(timeout);
+            cleanup();
             reject(error);
         });
 
         server.listen(callbackPort, callbackHost);
     });
+
+    return {
+        promise,
+        cleanup
+    }
 }
 
-function createAuthWindow() {
+function createAuthWindow(providerLabel: string) {
     return new BrowserWindow({
         width: 520,
         height: 720,
-        title: "VFUN Google Login",
+        title: `VFUN ${providerLabel} Login`,
         resizable: false,
         minimizable: true,
         maximizable: false,
@@ -320,7 +384,7 @@ function createAuthWindow() {
             nodeIntegration: false,
             contextIsolation: true,
             sandbox: true,
-            partition: `temporary:v-fun-google-login-${crypto.randomUUID()}`
+            partition: `temporary:v-fun-${providerLabel.toLowerCase()}-login-${crypto.randomUUID()}`
         }
     });
 }

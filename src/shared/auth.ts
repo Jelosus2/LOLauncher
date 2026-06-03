@@ -9,7 +9,8 @@ export type VfunTokenResponse = {
     expiresIn: number | null;
 };
 
-export type AuthProvider = "vfun" | "google";
+export type SnsAuthProvider = "google" | "facebook" | "apple";
+export type AuthProvider = "vfun" | SnsAuthProvider;
 
 export type VfunCredentialLoginRequest = {
     userId: string;
@@ -31,6 +32,11 @@ export type VfunOtpVerifyRequest = {
 };
 
 export type VfunLoginResult = AuthSession | AuthOtpChallenge;
+
+export type SnsLoginRequest = {
+    provider: SnsAuthProvider;
+    rememberLogin: boolean;
+};
 
 export type AuthSession = {
     provider: AuthProvider;

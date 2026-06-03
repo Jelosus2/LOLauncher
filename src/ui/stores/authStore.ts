@@ -1,4 +1,4 @@
-import type { AuthSession, VfunCredentialLoginRequest, VfunOtpVerifyRequest } from "../../shared/auth";
+import type { AuthSession, VfunCredentialLoginRequest, VfunOtpVerifyRequest, SnsAuthProvider } from "../../shared/auth";
 
 import { reportError } from "@/services/errorReporter";
 import { getCleanErrorMessage } from "@/utils/errors";
@@ -27,23 +27,31 @@ export const useAuthStore = defineStore("auth", () => {
         }
     }
 
-    async function loginWithGoogle(rememberLogin: boolean) {
+    async function loginWithSns(provider: SnsAuthProvider, rememberLogin: boolean) {
         isLoggingIn.value = true;
 
         try {
-            const result = await window.app.loginWithGoogle(rememberLogin);
+            const result = await window.app.loginWithSns({
+                provider,
+                rememberLogin
+            });
+
             if ("needsOtp" in result)
                 return result;
 
             session.value = result;
             return result;
         } catch (error) {
-            await reportError({
-                title: "Google Login Failed",
-                message: getCleanErrorMessage(error, "Unable to sign in with Google."),
-                context: "authStore.loginWithGoogle",
-                error
-            });
+            const message = error instanceof Error ? error.message : "";
+
+            if (!message.includes("SNS login was canceled")) {
+                await reportError({
+                title: "SNS Login Failed",
+                    message: getCleanErrorMessage(error, `Unable to sign in with ${provider}.`),
+                    context: "authStore.loginWithSns",
+                    error
+                });
+            }
 
             throw error;
         } finally {
@@ -105,7 +113,7 @@ export const useAuthStore = defineStore("auth", () => {
         isLoggingIn,
         isLoaded,
         loadSession,
-        loginWithGoogle,
+        loginWithSns,
         loginWithVfunId,
         verifyVfunOtp,
         logout

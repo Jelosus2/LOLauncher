@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { VfunLoginResult } from "../../shared/auth";
+import type { SnsAuthProvider, AuthProvider, VfunLoginResult } from "../../shared/auth";
 
 import { useNotificationStore } from "@/stores/notificationStore";
 import { useLauncherStore } from "@/stores/launcherStore";
@@ -24,11 +24,11 @@ const settingsStore = useSettingsStore();
 const gameStore = useGameStore();
 const authStore = useAuthStore();
 
-const loginMode = ref<"vfun" | "google" | "facebook" | "apple">("vfun");
+const loginMode = ref<AuthProvider>("vfun");
 const vfunUserId = ref(settingsStore.settings.rememberedVfunId);
 const vfunPassword = ref("");
 const pendingOtp = ref<{
-    provider: "vfun" | "google";
+    provider: AuthProvider;
     userId: string;
 } | null>(null);
 const otpCode = ref("");
@@ -60,8 +60,8 @@ async function continueProviderLogin() {
         return;
     }
 
-    if (loginMode.value === "google") {
-        await continueGoogleLogin();
+    if (loginMode.value === "google" || loginMode.value === "facebook" || loginMode.value === "apple") {
+        await continueSnsLogin();
         return;
     }
 
@@ -71,9 +71,9 @@ async function continueProviderLogin() {
     }
 }
 
-async function continueGoogleLogin() {
+async function continueSnsLogin() {
     try {
-        const result = await authStore.loginWithGoogle(settingsStore.settings.rememberLogin);
+        const result = await authStore.loginWithSns(loginMode.value as SnsAuthProvider, settingsStore.settings.rememberLogin);
         await handleLoginResult(result);
     } catch {
         emit("loginFailed");
@@ -342,7 +342,7 @@ function updateOtpCode(event: Event) {
 
                         <button
                             class="secondary-action"
-                            :disabled="authStore.isLoggingIn || loginMode !== 'google'"
+                            :disabled="authStore.isLoggingIn"
                             @click="continueProviderLogin"
                         >
                             {{ authStore.isLoggingIn ? "Signing in..." : "Continue" }}

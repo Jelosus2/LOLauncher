@@ -1,14 +1,14 @@
-import type { VfunCredentialLoginRequest, VfunOtpVerifyRequest } from "../../../shared/auth.js";
+import type { VfunCredentialLoginRequest, VfunOtpVerifyRequest, SnsLoginRequest } from "../../../shared/auth.js";
 import type { IpcMainInvokeEvent } from "electron";
 
 import { clearAuthSession, loadAuthSession, toPublicAuthSession } from "../../auth/authStorageService.js";
-import { loginWithGoogle, loginWithVfunId, verifyVfunOtp } from "../../auth/vfunAuthService.js";
+import { loginWithSns, loginWithVfunId, verifyVfunOtp } from "../../auth/vfunAuthService.js";
 import { IpcHandle } from "../ipcDecorators.js";
 
 export class AuthController {
-    @IpcHandle("auth:login-google")
-    loginGoogle(_event: IpcMainInvokeEvent, rememberLogin: boolean) {
-        return loginWithGoogle(rememberLogin);
+    @IpcHandle("auth:login-sns")
+    loginSns(_event: IpcMainInvokeEvent, request: SnsLoginRequest) {
+        return loginWithSns(request);
     }
 
     @IpcHandle("auth:login-vfun")
