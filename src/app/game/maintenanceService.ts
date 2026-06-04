@@ -3,14 +3,14 @@ import type { MaintenanceApiResponse, MaintenanceStatus } from "../../shared/mai
 const maintenanceEndpoint = "https://api.valofe.com/v1/vlauncher/check_maintenance";
 const serviceCode = "lastorigin-gl";
 
-export class RestrictedCountryError extends Error {
+class RestrictedCountryError extends Error {
     constructor(public readonly status: MaintenanceStatus) {
         super(status.message);
         this.name = "RestrictedCountryError";
     }
 }
 
-export class MaintenanceError extends Error {
+class MaintenanceError extends Error {
     constructor(public readonly status: MaintenanceStatus) {
         super(status.message);
         this.name = "MaintenanceError";

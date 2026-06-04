@@ -8,7 +8,6 @@ import { ref } from "vue";
 export const useAuthStore = defineStore("auth", () => {
     const session = ref<AuthSession | null>(null);
     const isLoggingIn = ref(false);
-    const isLoaded = ref(false);
 
     async function loadSession() {
         try {
@@ -22,8 +21,6 @@ export const useAuthStore = defineStore("auth", () => {
                 context: "authStore.loadSession",
                 error
             });
-        } finally {
-            isLoaded.value = true;
         }
     }
 
@@ -111,7 +108,6 @@ export const useAuthStore = defineStore("auth", () => {
     return {
         session,
         isLoggingIn,
-        isLoaded,
         loadSession,
         loginWithSns,
         loginWithVfunId,

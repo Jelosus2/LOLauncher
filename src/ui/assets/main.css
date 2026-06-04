@@ -71,10 +71,6 @@ button {
     filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.62));
 }
 
-.brand-block {
-    min-height: 190px;
-}
-
 .eyebrow {
     margin: 0 0 8px;
     color: #ffd6a0;
@@ -83,56 +79,15 @@ button {
     text-transform: uppercase;
 }
 
-.logo-mark {
-    width: 76px;
-    height: 76px;
-    display: grid;
-    place-items: center;
-    margin: 28px 0 16px;
-    border: 1px solid rgba(255, 205, 150, 0.34);
-    background: rgba(35, 27, 21, 0.92);
-    font-size: 26px;
-    font-weight: 900;
-}
-
-.brand-block h2,
 .topbar h1,
 .news-carousel h2,
 .modal-panel h2 {
     margin: 0;
 }
 
-.muted {
-    color: #b8ada2;
-}
-
-.operator-card {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 14px;
-    border: 1px solid rgba(255, 205, 150, 0.18);
-    background: rgba(24, 19, 15, 0.72);
-}
-
-.avatar {
-    width: 42px;
-    height: 42px;
-    display: grid;
-    place-items: center;
-    border: 1px solid rgba(255, 205, 150, 0.34);
-    color: #ff9345;
-    font-weight: 900;
-}
-
 .operator-name {
     margin: 0 0 2px;
     font-weight: 800;
-}
-
-.operator-card .muted {
-    margin: 0;
-    font-size: 13px;
 }
 
 .main-action {
@@ -274,23 +229,6 @@ button {
 
 .main-action.state-install {
     background: linear-gradient(180deg, #eef8f8, #9dbfc5);
-}
-
-.version-stack {
-    display: grid;
-    gap: 10px;
-    margin-top: 14px;
-    color: #c6b9aa;
-    font-size: 13px;
-}
-
-.version-stack div {
-    display: flex;
-    justify-content: space-between;
-}
-
-.version-stack strong {
-    color: #eef8f8;
 }
 
 .launcher-main {

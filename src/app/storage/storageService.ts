@@ -10,20 +10,6 @@ export class InsufficientStorageError extends Error {
     }
 }
 
-export async function checkAvailableStorage(targetPath: string, requiredBytes: number): Promise<StorageCheckResult> {
-    const existingPath = await getExistingPath(targetPath);
-    const stats = await fs.statfs(existingPath);
-
-    const availableBytes = stats.bavail * stats.bsize;
-
-    return {
-        path: existingPath,
-        requiredBytes,
-        availableBytes,
-        hasEnoughSpace: availableBytes >= requiredBytes
-    };
-}
-
 export async function assertAvailableStorage(targetPath: string, requiredBytes: number) {
     const result = await checkAvailableStorage(targetPath, requiredBytes);
     if (!result.hasEnoughSpace)
@@ -43,6 +29,20 @@ export function formatBytes(bytes: number) {
     }
 
     return `${value.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+}
+
+async function checkAvailableStorage(targetPath: string, requiredBytes: number): Promise<StorageCheckResult> {
+    const existingPath = await getExistingPath(targetPath);
+    const stats = await fs.statfs(existingPath);
+
+    const availableBytes = stats.bavail * stats.bsize;
+
+    return {
+        path: existingPath,
+        requiredBytes,
+        availableBytes,
+        hasEnoughSpace: availableBytes >= requiredBytes
+    };
 }
 
 async function getExistingPath(targetPath: string) {

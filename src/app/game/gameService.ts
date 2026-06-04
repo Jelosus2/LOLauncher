@@ -80,21 +80,6 @@ export async function assertGameIsNotRunning() {
         throw new Error("Last Origin R+ is currently running. Close the game before updating or repairing.");
 }
 
-export async function getGameUninstallerPath() {
-    const installPath = await getGameInstallPath();
-    if (!installPath)
-        return null;
-
-    const uninstallerPath = path.join(installPath, "uninst.exe");
-
-    try {
-        const stat = await fs.stat(uninstallerPath);
-        return stat.isFile() ? uninstallerPath : null;
-    } catch {
-        return null;
-    }
-}
-
 export async function runGameUninstaller() {
     const uninstallerPath = await getGameUninstallerPath();
     if (!uninstallerPath)
@@ -116,6 +101,21 @@ export async function launchGame(options: LaunchGameOptions = {}) {
     const launchArgument = `fromVLauncher::VALOFE:${authCode}`;
 
     return runGame(executablePath, launchArgument, options);
+}
+
+async function getGameUninstallerPath() {
+    const installPath = await getGameInstallPath();
+    if (!installPath)
+        return null;
+
+    const uninstallerPath = path.join(installPath, "uninst.exe");
+
+    try {
+        const stat = await fs.stat(uninstallerPath);
+        return stat.isFile() ? uninstallerPath : null;
+    } catch {
+        return null;
+    }
 }
 
 function runSilentUninstaller(uninstallerPath: string) {

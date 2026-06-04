@@ -6,7 +6,6 @@ import { ref } from "vue";
 export const useSettingsStore = defineStore("settings", () => {
     const settings = ref<LauncherSettings>({ ...defaultLauncherSettings });
     const isLoaded = ref(false);
-    const isSaving = ref(false);
 
     async function loadSettings() {
         if (isLoaded.value) return;
@@ -29,7 +28,6 @@ export const useSettingsStore = defineStore("settings", () => {
         const previousSettings = { ...settings.value };
 
         settings.value[key] = value;
-        isSaving.value = true;
 
         try {
             settings.value = await window.app.updateSettings({ [key]: value });
@@ -42,15 +40,11 @@ export const useSettingsStore = defineStore("settings", () => {
                 context: "settingsStore.updateSetting",
                 error
             });
-        } finally {
-            isSaving.value = false;
         }
     }
 
     return {
         settings,
-        isLoaded,
-        isSaving,
         loadSettings,
         updateSetting
     };

@@ -30,7 +30,7 @@ export async function checkLauncherUpdate(): Promise<LauncherUpdateCheckResult> 
         };
     }
 
-    const metadata = await fetchLauncherUpdateMedata();
+    const metadata = await fetchLauncherUpdateMetadata();
     const currentVersion = app.getVersion();
     const hasUpdate = compareVersions(metadata.version, currentVersion) > 0;
 
@@ -107,7 +107,7 @@ export async function runLauncherUpdate(webContents: WebContents, mandatory: boo
     }
 }
 
-async function fetchLauncherUpdateMedata(): Promise<LauncherUpdateMetadata> {
+async function fetchLauncherUpdateMetadata(): Promise<LauncherUpdateMetadata> {
     const response = await fetch(updateMetadataUrl, {
         headers: {
             Accept: "application/json",

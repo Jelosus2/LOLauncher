@@ -33,28 +33,3 @@ export async function reportError(options: {
         details: serializeError(options.error)
     });
 }
-
-export async function reportMessage(options: {
-    level: "info" | "warn" | "error";
-    title: string;
-    message: string;
-    context?: string;
-    details?: unknown;
-}) {
-    const notifications = useNotificationStore();
-
-    notifications.push({
-        level: options.level,
-        title: options.title,
-        message: options.message
-    });
-
-    try {
-        await window.app.logMessage({
-            level: options.level,
-            message: options.message,
-            context: options.context,
-            details: options.details
-        });
-    } catch {}
-}

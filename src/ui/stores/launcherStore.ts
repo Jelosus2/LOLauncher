@@ -27,7 +27,6 @@ export const useLauncherStore = defineStore("launcher", () => {
 
     return {
         launcherVersion,
-        isLauncherVersionLoaded,
         loadLauncherVersion
     };
 });

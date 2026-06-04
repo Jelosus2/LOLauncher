@@ -1,5 +1,4 @@
 import type { LauncherTaskProgress } from "../../shared/installer";
-import type { MaintenanceStatus } from "../../shared/maintenance";
 import type { PatchVersionInfo } from "../../shared/patch";
 import type { GameVersionInfo } from "../../shared/game";
 
@@ -18,17 +17,13 @@ export const useGameStore = defineStore("game", () => {
     const installPath = ref<string | null>(null);
     const isLoaded = ref(false);
     const isOpeningFolder = ref(false);
-    const maintenanceStatus = ref<MaintenanceStatus | null>(null);
-    const isCheckingMaintenance = ref(false);
     const taskProgress = ref<LauncherTaskProgress>({ ...idleProgress });
     const isRunningTask = ref(false);
     const versionInfo = ref<PatchVersionInfo | null>(null);
-    const isCheckingVersionInfo = ref(false);
     const gameVersionInfo = ref<GameVersionInfo>({
         gameVersion: null,
         patchVersion: null
     });
-    const isGameRunning = ref(false);
     const isLaunchingGame = ref(false);
 
     async function loadInstallPath() {
@@ -79,22 +74,17 @@ export const useGameStore = defineStore("game", () => {
     }
 
     async function checkMaintenance() {
-        isCheckingMaintenance.value = true;
-
         try {
-            maintenanceStatus.value = await window.app.checkMaintenance();
-            return maintenanceStatus.value;
+            return await window.app.checkMaintenance();
         } catch (error) {
             await reportError({
                 title: "Status Check Failed",
                 message: "Unable to check game service status.",
-                context: "maintenanceStore.checkMaintenance",
+                context: "gameStore.checkMaintenance",
                 error
             });
 
             throw error;
-        } finally {
-            isCheckingMaintenance.value = false;
         }
     }
 
@@ -120,7 +110,7 @@ export const useGameStore = defineStore("game", () => {
             await reportError({
                 title: isStorageError(error) ? "Not Enough Disk Space" : "Install Failed",
                 message: getCleanErrorMessage(error, "Unable to download or open the Last Origin R+ installer."),
-                context: "installerStore.downloadAndOpenInstaller",
+                context: "gameStore.downloadAndRunInstaller",
                 error
             });
         } finally {
@@ -158,19 +148,15 @@ export const useGameStore = defineStore("game", () => {
     }
 
     async function loadPatchVersionInfo() {
-        isCheckingVersionInfo.value = true;
-
         try {
             versionInfo.value = await window.app.getPatchVersionInfo();
         } catch (error) {
             await reportError({
                 title: "Patch Check Failed",
                 message: "Unable to check the game patch version.",
-                context: "patchStore.loadPatchVersionInfo",
+                context: "gameStore.loadPatchVersionInfo",
                 error
             });
-        } finally {
-            isCheckingVersionInfo.value = false;
         }
     }
 
@@ -282,15 +268,12 @@ export const useGameStore = defineStore("game", () => {
 
     async function isGameProcessRunning() {
         try {
-            isGameRunning.value = await window.app.isGameProcessRunning();
-            return isGameRunning.value;
+            return await window.app.isGameProcessRunning();
         } catch (error) {
-            isGameRunning.value = false;
-
             await reportError({
                 title: "Game Process Check Failed",
                 message: "Unable to check whether Last Origin R+ is running.",
-                context: "gameStore.checkGameProcessStatus",
+                context: "gameStore.isGameProcessRunning",
                 error
             });
 
@@ -336,14 +319,10 @@ export const useGameStore = defineStore("game", () => {
         installPath,
         isLoaded,
         isOpeningFolder,
-        maintenanceStatus,
-        isCheckingMaintenance,
         taskProgress,
         isRunningTask,
         versionInfo,
-        isCheckingVersionInfo,
         gameVersionInfo,
-        isGameRunning,
         isLaunchingGame,
         loadInstallPath,
         checkMaintenance,
