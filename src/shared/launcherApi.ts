@@ -1,4 +1,5 @@
 import type { AuthSession, VfunCredentialLoginRequest, VfunLoginResult, VfunOtpVerifyRequest, SnsLoginRequest } from "./auth.js";
+import type { LauncherUpdateCheckResult, LauncherUpdateProgress } from "./launcherUpdate.js";
 import type { PatchVersionInfo, PatchApplyResult } from "./patch.js";
 import type { LauncherTaskProgress } from "./installer.js";
 import type { MaintenanceStatus } from "./maintenance.js";
@@ -40,6 +41,9 @@ export type LauncherApi = {
     getAuthSession: () => Promise<AuthSession | null>;
     logout: () => Promise<void>;
     launchGame: () => Promise<void>;
+    checkLauncherUpdate: () => Promise<LauncherUpdateCheckResult>;
+    startLauncherUpdate: (mandatory: boolean) => Promise<void>;
+    onLauncherUpdateProgress: (callback: (progress: LauncherUpdateProgress) => void) => () => void;
     minimizeWindow: () => Promise<void>;
     closeWindow: () => Promise<void>;
 };

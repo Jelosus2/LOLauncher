@@ -1,0 +1,19 @@
+appId: com.jelosus1.lolauncher
+productName: LOLauncher
+directories: 
+  output: release
+files:
+  - dist/**/*
+  - resources/**/*
+publish: 
+  provider: github
+  owner: Jelosus2
+  repo: LOLauncher
+win:
+  artifactName: "LOLauncher-${version}.${ext}"
+  target: nsis
+nsis:
+  oneClick: false
+  perMachine: true
+  allowToChangeInstallationDirectory: true
+  artifactName: "LOLauncher-Setup-${version}.${ext}"

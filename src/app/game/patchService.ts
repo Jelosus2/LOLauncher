@@ -114,11 +114,12 @@ async function applyLatestPatchInternal(onProgress: ProgressCallback, abortSigna
         await setRegistryGameVersion(patchVersion);
         await cleanupPatchArchives(downloadedArchivePaths);
 
+        const processedCount = applyResult.replacedCount + applyResult.skippedCount;
+
         emitProgress(
             onProgress,
             "complete",
-            `Game patched successfully - ${applyResult.replacedCount} updated,
-            ${applyResult.skippedCount} unchanged`,
+            `Game patched successfully - ${processedCount}/${entries.length} files processed, ${applyResult.replacedCount} updated, ${applyResult.skippedCount} unchanged`,
             100
         );
 
@@ -216,10 +217,12 @@ async function repairGameFilesInternal(onProgress: ProgressCallback, abortSignal
 
         await cleanupPatchArchives(downloadedArchivePaths);
 
+        const processedCount = repairResult.replacedCount + repairResult.skippedCount;
+
         emitProgress(
             onProgress,
             "complete",
-            `Repair complete - ${repairResult.replacedCount} repaired, ${repairResult.skippedCount} unchanged`,
+            `Repair complete - ${processedCount}/${entries.length} files processed, ${repairResult.replacedCount} repaired, ${repairResult.skippedCount} unchanged`,
             100
         );
 
@@ -487,6 +490,15 @@ async function extractPatchArchivesWithPool(options: {
     try {
         const workerCount = Math.min(concurrency, entries.length);
         await Promise.all(Array.from({ length: workerCount }, () => workerLoop()));
+
+        const processedCount = replacedCount + skippedCount;
+
+        emitApplyProgress(
+            onProgress,
+            `${labelPrefix} ${processedCount}/${entries.length} - ${replacedCount} updated, ${skippedCount} unchanged`,
+            processedCount,
+            entries.length
+        );
 
         return {
             replacedCount,

@@ -1,3 +1,4 @@
+import type { LauncherUpdateProgress } from "../shared/launcherUpdate.js";
 import type { LauncherTaskProgress } from "../shared/installer.js";
 import type { LauncherApi } from "../shared/launcherApi.js";
 
@@ -41,6 +42,19 @@ const launcherApi: LauncherApi = {
     getAuthSession: () => ipcRenderer.invoke("auth:get-session"),
     logout: () => ipcRenderer.invoke("auth:logout"),
     launchGame: () => ipcRenderer.invoke("game:launch"),
+    checkLauncherUpdate: () => ipcRenderer.invoke("launcher:check-update"),
+    startLauncherUpdate: (mandatory) => ipcRenderer.invoke("launcher:start-update", mandatory),
+    onLauncherUpdateProgress: (callback) => {
+        const listener = (_event: Electron.IpcRendererEvent, progress: LauncherUpdateProgress) => {
+            callback(progress);
+        };
+
+        ipcRenderer.on("launcher-update:progress", listener);
+
+        return () => {
+            ipcRenderer.removeListener("launcher-update:progress", listener);
+        };
+    },
     minimizeWindow: () => ipcRenderer.invoke("window:minimize"),
     closeWindow: () => ipcRenderer.invoke("window:close")
 } as const;

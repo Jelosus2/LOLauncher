@@ -11,9 +11,11 @@
     "build:ui": "vite build",
     "build:electron": "tsc -p tsconfig.preload.json && tsc -p tsconfig.app.json",
     "build": "pnpm build:ui && pnpm build:electron",
+    "dist": "pnpm build && electron-builder --win --publish never",
     "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {
+    "electron-updater": "^6.8.3",
     "find-process": "^2.1.1",
     "lzma-native": "^8.0.6",
     "pinia": "^3.0.4",

@@ -1,5 +1,6 @@
 import type { GameNewsItem } from "../../../shared/news.js";
 
+import { checkLauncherUpdate, runLauncherUpdate } from "../../lifecycle/launcherUpdateService.js";
 import { app, shell, type IpcMainInvokeEvent } from "electron";
 import { IpcHandle } from "../ipcDecorators.js";
 
@@ -71,6 +72,16 @@ export class LauncherController {
             throw new Error(`Blocked unsupported URL protocol: ${parsedUrl.protocol}`);
 
         await shell.openExternal(parsedUrl.toString());
+    }
+
+    @IpcHandle("launcher:check-update")
+    checkUpdate() {
+        return checkLauncherUpdate();
+    }
+
+    @IpcHandle("launcher:start-update")
+    startUpdate(event: IpcMainInvokeEvent, mandatory: boolean) {
+        return runLauncherUpdate(event.sender, mandatory);
     }
 
     formatDate(date: string) {

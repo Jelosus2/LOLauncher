@@ -1119,3 +1119,90 @@ button {
     cursor: default;
     opacity: 0.55;
 }
+
+.mandatory-update-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: grid;
+    place-items: center;
+    padding: 32px;
+    background:
+        radial-gradient(circle at 50% 40%, rgba(255, 138, 61, 0.16), transparent 34%),
+        rgba(5, 8, 10, 0.68);
+    backdrop-filter: blur(14px) saturate(0.9);
+}
+
+.mandatory-update-panel {
+    width: min(470px, 100%);
+    padding: 24px;
+    color: rgba(255, 248, 239, 0.96);
+    background:
+        linear-gradient(135deg, rgba(35, 26, 20, 0.96), rgba(18, 18, 18, 0.96)),
+        rgba(18, 18, 18, 0.96);
+    border: 1px solid rgba(255, 166, 92, 0.42);
+    box-shadow:
+        0 24px 70px rgba(0, 0, 0, 0.46),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.mandatory-update-panel h2 {
+    margin: 0 0 10px;
+    color: #fff2df;
+    font-size: 20px;
+    font-weight: 800;
+}
+
+.mandatory-update-panel p {
+    margin: 0 0 14px;
+    color: rgba(255, 238, 218, 0.78);
+    line-height: 1.45;
+}
+
+.mandatory-update-status {
+    margin-top: 12px;
+    color: #ffb36f;
+    font-weight: 800;
+}
+
+.mandatory-update-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.mandatory-update-actions button {
+    min-width: 96px;
+    border: 1px solid rgba(255, 177, 111, 0.35);
+    padding: 10px 14px;
+    background: rgba(255, 255, 255, 0.06);
+    color: #fff2df;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.mandatory-update-actions button:first-child {
+    border-color: rgba(255, 138, 61, 0.82);
+    background: linear-gradient(180deg, #ffad68, #ff7d32);
+    color: #16100c;
+}
+
+.mandatory-update-actions button:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.11);
+}
+
+.mandatory-update-actions button:first-child:hover:not(:disabled) {
+    background: linear-gradient(180deg, #ffc18c, #ff8a3d);
+}
+
+.mandatory-update-actions button:disabled {
+    cursor: default;
+    opacity: 0.55;
+}
+
+.mandatory-update-panel .launcher-progress-track {
+    margin-top: 16px;
+    margin-bottom: 16px;
+    background: rgba(255, 255, 255, 0.12);
+}

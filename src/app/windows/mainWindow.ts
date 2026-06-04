@@ -21,9 +21,16 @@ export async function createMainWindow() {
         webPreferences: {
             preload: getPreloadPath(),
             contextIsolation: true,
-            nodeIntegration: false
+            nodeIntegration: false,
+            devTools: !app.isPackaged
         }
     });
+
+    if (app.isPackaged) {
+        mainWindow.webContents.on("devtools-opened", () => {
+            mainWindow.webContents.closeDevTools();
+        });
+    }
 
     mainWindow.once("ready-to-show", () => {
         mainWindow.show();

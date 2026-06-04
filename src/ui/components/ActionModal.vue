@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { SnsAuthProvider, AuthProvider, VfunLoginResult } from "../../shared/auth";
+import type { LauncherUpdateCheckResult } from "../../shared/launcherUpdate";
 
 import { useNotificationStore } from "@/stores/notificationStore";
 import { useLauncherStore } from "@/stores/launcherStore";
@@ -32,6 +33,9 @@ const pendingOtp = ref<{
     userId: string;
 } | null>(null);
 const otpCode = ref("");
+const launcherUpdateCheck = ref<LauncherUpdateCheckResult | null>(null);
+const isCheckingLauncherUpdate = ref(false);
+const isStartingLauncherUpdate = ref(false);
 
 const title = computed(() => props.kind === "settings" ? "Game Settings" : "VFUN Login");
 const isOtpStep = computed(() => !!pendingOtp.value);
@@ -42,6 +46,19 @@ const canSubmitVfunLogin = computed(() => {
 
 const canSubmitOtp = computed(() => {
     return !authStore.isLoggingIn && /^\d{6}$/.test(otpCode.value);
+});
+
+const launcherUpdateButtonText = computed(() => {
+    if (isStartingLauncherUpdate.value)
+        return "Starting Update...";
+
+    if (isCheckingLauncherUpdate.value)
+        return "Checking...";
+
+    if (launcherUpdateCheck.value?.available)
+        return `Update to ${launcherUpdateCheck.value.latestVersion}`;
+
+    return "Check Launcher Updates";
 });
 
 watch(() => settingsStore.settings.rememberedVfunId, (rememberedVfunId) => {
@@ -149,6 +166,64 @@ async function handleLoginResult(result: VfunLoginResult) {
     await finishSuccessfulLogin(result);
 }
 
+async function checkLauncherUpdates() {
+    if (launcherUpdateCheck.value?.available) {
+        await startCheckedLauncherUpdate();
+        return;
+    }
+
+    isCheckingLauncherUpdate.value = true;
+
+    try {
+        const update = await window.app.checkLauncherUpdate();
+        launcherUpdateCheck.value = update;
+
+        if (!update.available) {
+            notificationStore.push({
+                level: "info",
+                title: "Launcher Up To Date",
+                message: "No launcher update is available."
+            });
+            return;
+        }
+
+        notificationStore.push({
+            level: "info",
+            title: "Launcher Update Found",
+            message: `Version ${update.latestVersion} is available. Click to update.`
+        });
+    } catch {
+        launcherUpdateCheck.value = null;
+
+        notificationStore.push({
+            level: "error",
+            title: "Update Check Failed",
+            message: "Unable to check for launcher updates."
+        });
+    } finally {
+        isCheckingLauncherUpdate.value = false;
+    }
+}
+
+async function startCheckedLauncherUpdate() {
+    if (!launcherUpdateCheck.value?.available)
+        return;
+
+    isStartingLauncherUpdate.value = true;
+
+    try {
+        await window.app.startLauncherUpdate(launcherUpdateCheck.value.mandatory);
+    } catch {
+        notificationStore.push({
+            level: "error",
+            title: "Update Failed",
+            message: "Unable to start the launcher update."
+        });
+    } finally {
+        isStartingLauncherUpdate.value = false;
+    }
+}
+
 function updateOtpCode(event: Event) {
     const input = event.target as HTMLInputElement;
     otpCode.value = input.value.replace(/\D/g, "").slice(0, 6);
@@ -238,7 +313,13 @@ function updateOtpCode(event: Event) {
                     <strong>{{ launcherStore.launcherVersion || "Unknown" }}</strong>
                 </div>
 
-                <button class="secondary-action">Check Launcher Updates</button>
+                <button
+                    class="secondary-action"
+                    :disabled="isCheckingLauncherUpdate || isStartingLauncherUpdate"
+                    @click="checkLauncherUpdates"
+                >
+                    {{ launcherUpdateButtonText }}
+                </button>
             </div>
 
             <div v-else class="modal-body login-body">

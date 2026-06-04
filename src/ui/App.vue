@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import type { LauncherUpdateProgress } from "../shared/launcherUpdate.ts";
+
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import ServiceStatusDialog from "./components/ServiceStatusDialog.vue";
 import NotificationHost from "./components/NotificationHost.vue";
 import LauncherShell from "./components/LauncherShell.vue";
 import ActionModal from "./components/ActionModal.vue";
+import { useNotificationStore } from "./stores/notificationStore.ts";
 import { useLauncherStore } from "./stores/launcherStore";
 import { useSettingsStore } from "./stores/settingsStore.ts";
 import { useGameStore } from "./stores/gameStore.ts";
@@ -17,12 +20,20 @@ const serviceDialog = ref<{
     title: string;
     message: string;
 } | null>(null);
+const launcherUpdateOverlay = ref<{
+    mandatory: boolean;
+    latestVersion?: string;
+} | null>(null);
+const launcherUpdateProgress = ref<LauncherUpdateProgress | null>(null);
+
+const notificationStore = useNotificationStore();
 const launcherStore = useLauncherStore();
 const settingsStore = useSettingsStore();
 const gameStore = useGameStore();
 const authStore = useAuthStore();
 
 let unsubscribeInstallerProgress: (() => void) | undefined;
+let unsubscribeLauncherUpdateProgress: (() => void) | undefined;
 let pendingLoginResolve: ((success: boolean) => void) | undefined;
 
 const launcherState = computed<LauncherState>(() => {
@@ -49,6 +60,14 @@ const gameVersionLabel = computed(() => {
         return `Game version: ${gameVersion}`;
 
     return `Game version: ${gameVersion} (${patchVersion})`;
+});
+
+const isLauncherUpdateRunning = computed(() => {
+    return (
+        launcherUpdateProgress.value?.phase === "checking" ||
+        launcherUpdateProgress.value?.phase === "downloading" ||
+        launcherUpdateProgress.value?.phase === "installing"
+    );
 });
 
 async function handleMainAction() {
@@ -154,6 +173,35 @@ async function ensureGameIsNotRunning(nextAction: () => void) {
     };
 }
 
+async function checkMandatoryLauncherUpdate() {
+    try {
+        const update = await window.app.checkLauncherUpdate();
+
+        if (!update.available || !update.mandatory)
+            return;
+
+        launcherUpdateOverlay.value = {
+            mandatory: true,
+            latestVersion: update.latestVersion
+        };
+    } catch {
+        launcherUpdateOverlay.value = null;
+
+        notificationStore.push({
+            level: "info",
+            title: "Launcher Update Check Failed",
+            message: "The launcher could not check for updates right now."
+        });
+    }
+}
+
+async function startOverlayLauncherUpdate() {
+    if (!launcherUpdateOverlay.value)
+        return;
+
+    await window.app.startLauncherUpdate(launcherUpdateOverlay.value.mandatory);
+}
+
 function closeActiveModal() {
     if (activeModal.value === "login" && pendingLoginResolve) {
         pendingLoginResolve(false);
@@ -184,18 +232,38 @@ function waitForLogin() {
     });
 }
 
+function minimizeWindow() {
+    window.app.minimizeWindow();
+}
+
+function closeWindow() {
+    window.app.closeWindow();
+}
+
 onMounted(() => {
     void launcherStore.loadLauncherVersion();
     void settingsStore.loadSettings();
     void gameStore.loadInstallPath();
     void gameStore.loadPatchVersionInfo();
     void authStore.loadSession();
+    void checkMandatoryLauncherUpdate();
 
     unsubscribeInstallerProgress = gameStore.subscribeInstallerProgress();
+
+    unsubscribeLauncherUpdateProgress = window.app.onLauncherUpdateProgress((progress) => {
+        launcherUpdateProgress.value = progress;
+
+        if (!launcherUpdateOverlay.value) {
+            launcherUpdateOverlay.value = {
+                mandatory: false
+            };
+        }
+    });
 });
 
 onUnmounted(() => {
     unsubscribeInstallerProgress?.();
+    unsubscribeLauncherUpdateProgress?.();
 });
 </script>
 
@@ -234,4 +302,50 @@ onUnmounted(() => {
     />
 
     <NotificationHost />
+
+    <div v-if="launcherUpdateOverlay" class="mandatory-update-backdrop">
+        <section class="mandatory-update-panel">
+            <h2>
+                {{ launcherUpdateOverlay.mandatory ? "Required Launcher Update" : "Launcher Update" }}
+            </h2>
+
+            <p v-if="launcherUpdateOverlay.latestVersion">
+                Version {{ launcherUpdateOverlay.latestVersion }} is available.
+            </p>
+
+            <div class="launcher-progress-track">
+                <div
+                    class="launcher-progress-fill"
+                    :style="{ width: `${launcherUpdateProgress?.percent ?? 0}%` }"
+                />
+            </div>
+
+            <p class="mandatory-update-status">
+                {{ launcherUpdateProgress?.label || "Update is required before using the launcher." }}
+            </p>
+
+            <div class="mandatory-update-actions">
+                <button
+                    :disabled="isLauncherUpdateRunning"
+                    @click="startOverlayLauncherUpdate"
+                >
+                    {{ isLauncherUpdateRunning ? "Updating..." : "Update" }}
+                </button>
+
+                <button
+                    v-if="launcherUpdateOverlay.mandatory"
+                    @click="minimizeWindow()"
+                >
+                    Minimize
+                </button>
+
+                <button
+                    v-if="launcherUpdateOverlay.mandatory"
+                    @click="closeWindow"
+                >
+                    Close
+                </button>
+            </div>
+        </section>
+    </div>
 </template>
