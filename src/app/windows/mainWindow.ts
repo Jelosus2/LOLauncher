@@ -4,11 +4,13 @@ import { createOrShowTray, markAppAsQuitting, shouldQuitApp } from "../lifecycle
 import { getPreloadPath, getRendererHtmlPath } from "../shared/paths.js";
 import { serializeError, writeLog } from "../logging/logger.js";
 import { getSettings } from "../config/settingsService.js";
+import { getAppIconPath } from "../shared/assets.js";
 import { appConfig } from "../config/appConfig.js";
 
 export async function createMainWindow() {
     const mainWindow = new BrowserWindow({
         title: appConfig.appName,
+        icon: getAppIconPath(),
         autoHideMenuBar: true,
         width: appConfig.mainWindow.width,
         height: appConfig.mainWindow.height,

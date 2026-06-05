@@ -4,16 +4,23 @@ directories:
   output: release
 files:
   - dist/**/*
-  - resources/**/*
+extraResources:
+  - from: resources
+    to: assets
+    filter:
+      - "**/*"
 publish: 
   provider: github
   owner: Jelosus2
   repo: LOLauncher
 win:
   artifactName: "LOLauncher-${version}.${ext}"
+  icon: resources/icons/app.ico
   target: nsis
 nsis:
   oneClick: false
   perMachine: true
+  installerIcon: resources/icons/app.ico
+  uninstallerIcon: resources/icons/app.ico
   allowToChangeInstallationDirectory: true
   artifactName: "LOLauncher-Setup-${version}.${ext}"

@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "",
+  "description": "Launcher for the game Last Origin R+",
   "main": "dist/app/index.js",
   "scripts": {
     "dev:ui": "vite",

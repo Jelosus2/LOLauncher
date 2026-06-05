@@ -5,7 +5,19 @@ import { app, BrowserWindow, Menu } from "electron";
 
 export type WindowFactory = () => Promise<BrowserWindow>;
 
+let mainWindow: BrowserWindow | null = null;
+
 export function registerAppLifecycle(createMainWindow: WindowFactory) {
+    const hasSingleInstanceLock = app.requestSingleInstanceLock();
+    if (!hasSingleInstanceLock) {
+        app.quit();
+        return;
+    }
+
+    app.on("second-instance", () => {
+        showMainWindow();
+    });
+
     app.whenReady().then(async () => {
         if (app.isPackaged)
             Menu.setApplicationMenu(null);
@@ -13,12 +25,15 @@ export function registerAppLifecycle(createMainWindow: WindowFactory) {
         const settings = await getSettings();
         applyStartupSetting(settings.startOnSystemStartup);
 
-        await createMainWindow();
+        mainWindow = await createMainWindow();
 
         app.on("activate", async () => {
             if (BrowserWindow.getAllWindows().length === 0) {
-                await createMainWindow();
+                mainWindow = await createMainWindow();
+                return;
             }
+
+            showMainWindow();
         });
     });
 
@@ -31,4 +46,17 @@ export function registerAppLifecycle(createMainWindow: WindowFactory) {
             app.quit();
         }
     });
+}
+
+function showMainWindow() {
+    const window = mainWindow ?? BrowserWindow.getAllWindows()[0];
+
+    if (!window || window.isDestroyed())
+        return;
+
+    if (window.isMinimized())
+        window.restore();
+
+    window.show();
+    app.focus({ steal: true });
 }

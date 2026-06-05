@@ -1,5 +1,5 @@
 import { app, BrowserWindow, Menu, Tray } from "electron";
-import { getTrayIcon } from "../shared/assets.js";
+import { getAppIcon } from "../shared/assets.js";
 
 let tray: Tray | null = null;
 let isQuitting = false;
@@ -15,7 +15,7 @@ export function shouldQuitApp() {
 export function createOrShowTray(mainWindow: BrowserWindow) {
     if (tray) return tray;
 
-    tray = new Tray(getTrayIcon());
+    tray = new Tray(getAppIcon());
     tray.setToolTip("LOLauncher");
 
     tray.setContextMenu(Menu.buildFromTemplate([

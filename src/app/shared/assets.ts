@@ -8,7 +8,11 @@ export function getRuntimeAssetPath(...segments: string[]) {
     return path.join(process.cwd(), "resources", ...segments);
 }
 
-export function getTrayIcon() {
-    const iconPath = getRuntimeAssetPath("icons", "tray.ico");
+export function getAppIconPath() {
+    return getRuntimeAssetPath("icons", "app.ico");
+}
+
+export function getAppIcon() {
+    const iconPath = getAppIconPath();
     return nativeImage.createFromPath(iconPath);
 }

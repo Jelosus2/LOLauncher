@@ -12,6 +12,7 @@ import type {
 } from "../../shared/auth.js";
 
 import { saveAuthSession, setMemoryAuthSession, toPublicAuthSession } from "./authStorageService.js";
+import { getAppIconPath } from "../shared/assets.js";
 import { BrowserWindow } from "electron";
 import { exec } from "node:child_process";
 import crypto from "node:crypto";
@@ -375,6 +376,7 @@ function createAuthWindow(providerLabel: string) {
         width: 520,
         height: 720,
         title: `VFUN ${providerLabel} Login`,
+        icon: getAppIconPath(),
         resizable: false,
         minimizable: true,
         maximizable: false,

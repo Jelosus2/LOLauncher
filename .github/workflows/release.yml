@@ -1,0 +1,117 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to release, for example v1.0.1"
+        required: true
+        type: string
+      mandatory:
+        description: "Mark this launcher update as mandatory"
+        required: true
+        default: false
+        type: boolean
+      minimum_supported_version:
+        description: "Oldest launcher version allowed to run, optional"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    name: Build Windows Release
+    runs-on: windows-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate release tag matches package version
+        shell: pwsh
+        run: |
+          $packageVersion = node -p "require('./package.json').version"
+          $tagName = "${{ github.event.inputs.tag || github.ref_name }}"
+
+          if ($tagName -ne "v$packageVersion") {
+            throw "Tag $tagName does not match package version v$packageVersion."
+          }
+
+      - name: Build Windows installer
+        shell: pwsh
+        run: |
+          pnpm dist
+
+      - name: Create launcher update metadata
+        shell: pwsh
+        run: |
+          $packageVersion = node -p "require('./package.json').version"
+
+          $mandatoryRaw = "${{ github.event.inputs.mandatory }}"
+          $mandatory = $false
+          if ($mandatoryRaw -eq "true") {
+            $mandatory = $true
+          }
+
+          $minimumSupportedVersion = "${{ github.event.inputs.minimum_supported_version }}"
+
+          $metadata = [ordered]@{
+            version = $packageVersion
+            mandatory = $mandatory
+          }
+
+          if (![string]::IsNullOrWhiteSpace($minimumSupportedVersion)) {
+            $metadata.minimumSupportedVersion = $minimumSupportedVersion
+          }
+
+          $metadata |
+            ConvertTo-Json -Depth 4 |
+            Set-Content -Path "release/launcher-update.json" -Encoding UTF8
+
+      - name: Prepare release notes
+        id: notes
+        shell: pwsh
+        run: |
+          $tagName = "${{ github.event.inputs.tag || github.ref_name }}"
+          $tagFile = ".github/release-notes/$tagName.md"
+          $outputFile = Join-Path $env:RUNNER_TEMP "release-notes.md"
+
+          if (Test-Path $tagFile) {
+            Copy-Item $tagFile $outputFile
+          } else {
+            New-Item -ItemType File -Path $outputFile -Force | Out-Null
+          }
+
+          "path=$outputFile" >> $env:GITHUB_OUTPUT
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          name: ${{ github.event.inputs.tag || github.ref_name }}
+          generate_release_notes: true
+          body_path: ${{ steps.notes.outputs.path }}
+          files: |
+            release/*.exe
+            release/*.blockmap
+            release/latest*.yml
+            release/launcher-update.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
