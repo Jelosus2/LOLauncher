@@ -44,6 +44,8 @@ export type LauncherApi = {
     checkLauncherUpdate: () => Promise<LauncherUpdateCheckResult>;
     startLauncherUpdate: (mandatory: boolean) => Promise<void>;
     onLauncherUpdateProgress: (callback: (progress: LauncherUpdateProgress) => void) => () => void;
+    onTrayStartGame: (callback: () => void) => () => void;
+    showWindow: () => Promise<void>;
     minimizeWindow: () => Promise<void>;
     closeWindow: () => Promise<void>;
 };

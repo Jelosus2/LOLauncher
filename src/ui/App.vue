@@ -14,6 +14,10 @@ import { useAuthStore } from "./stores/authStore.ts";
 
 type LauncherState = "install" | "ready" | "update";
 type ModalKind = "settings" | "login" | null;
+type StartGameFlowOptions = {
+    precheckedStatus?: Awaited<ReturnType<typeof gameStore.checkMaintenance>>;
+    revealOnBlocked?: boolean;
+};
 
 const activeModal = ref<ModalKind>(null);
 const serviceDialog = ref<{
@@ -34,7 +38,9 @@ const authStore = useAuthStore();
 
 let unsubscribeInstallerProgress: (() => void) | undefined;
 let unsubscribeLauncherUpdateProgress: (() => void) | undefined;
+let unsubscribeTrayStartGame: (() => void) | undefined;
 let pendingLoginResolve: ((success: boolean) => void) | undefined;
+let didHandleStartupGameLaunch = false;
 
 const launcherState = computed<LauncherState>(() => {
     if (!gameStore.isLoaded) return "ready";
@@ -89,29 +95,7 @@ async function handleMainAction() {
     }
 
     if (launcherState.value === "ready") {
-        if (status.isRestrictedCountry) {
-            serviceDialog.value = {
-                title: "Service Unavailable",
-                message: status.message
-            };
-            return;
-        }
-
-        if (status.isMaintenance) {
-            serviceDialog.value = {
-                title: "Game Under Maintenance",
-                message: status.message
-            };
-            return;
-        }
-
-        const isLoggedIn = await waitForLogin();
-        if (!isLoggedIn)
-            return;
-
-        await ensureGameIsNotRunning(() => {
-            void gameStore.launchGame();
-        });
+        await startGameFlow({ precheckedStatus: status });
         return;
     }
 
@@ -129,6 +113,74 @@ async function handleMainAction() {
         });
         return;
     }
+}
+
+async function startGameFlow(options: StartGameFlowOptions = {}) {
+    if (gameStore.isRunningTask || gameStore.isLaunchingGame)
+        return;
+
+    if (launcherState.value === "install") {
+        await revealLauncherIfNeeded(options);
+
+        serviceDialog.value = {
+            title: "Game Not Installed",
+            message: "Install Last Origin R+ before launching the game."
+        };
+        return;
+    }
+
+    if (launcherState.value === "update") {
+        await revealLauncherIfNeeded(options);
+
+        serviceDialog.value = {
+            title: "Game Update Required",
+            message: "Update Last Origin R+ before launching the game."
+        };
+        return;
+    }
+
+    const status = options.precheckedStatus ?? await gameStore.checkMaintenance();
+
+    if (status.isRestrictedCountry) {
+        await revealLauncherIfNeeded(options);
+
+        serviceDialog.value = {
+            title: "Service Unavailable",
+            message: status.message
+        };
+        return;
+    }
+
+    if (status.isMaintenance) {
+        await revealLauncherIfNeeded(options);
+
+        serviceDialog.value = {
+            title: "Game Under Maintenance",
+            message: status.message
+        };
+        return;
+    }
+
+    if (!authStore.session)
+        await revealLauncherIfNeeded(options);
+
+    const isLoggedIn = await waitForLogin();
+    if (!isLoggedIn)
+        return;
+
+    await ensureGameIsNotRunning(() => {
+        const launch = gameStore.launchGame();
+
+        if (options.revealOnBlocked)
+            void launch.catch(() => window.app.showWindow());
+        else
+            void launch;
+    }, options.revealOnBlocked);
+}
+
+async function revealLauncherIfNeeded(options: StartGameFlowOptions) {
+    if (options.revealOnBlocked)
+        await window.app.showWindow();
 }
 
 async function handleRepairGame() {
@@ -159,13 +211,16 @@ async function handleUninstallGame() {
     });
 }
 
-async function ensureGameIsNotRunning(nextAction: () => void) {
+async function ensureGameIsNotRunning(nextAction: () => void, revealOnBlocked = false) {
     const isGameRunning = await gameStore.isGameProcessRunning();
 
     if (!isGameRunning) {
         nextAction();
         return;
     }
+
+    if (revealOnBlocked)
+        await window.app.showWindow();
 
     serviceDialog.value = {
         title: "Game Is Running",
@@ -232,6 +287,31 @@ function waitForLogin() {
     });
 }
 
+async function bootstrapLauncher() {
+    await Promise.all([
+        launcherStore.loadLauncherVersion(),
+        settingsStore.loadSettings(),
+        gameStore.loadInstallPath(),
+        gameStore.loadPatchVersionInfo(),
+        authStore.loadSession()
+    ]);
+
+    await checkMandatoryLauncherUpdate();
+    await startGameOnLauncherOpen();
+}
+
+async function startGameOnLauncherOpen() {
+    if (didHandleStartupGameLaunch)
+        return;
+
+    didHandleStartupGameLaunch = true;
+
+    if (!settingsStore.settings.startGameOnLauncherOpen || launcherUpdateOverlay.value?.mandatory)
+        return;
+
+    await startGameFlow();
+}
+
 function minimizeWindow() {
     window.app.minimizeWindow();
 }
@@ -241,13 +321,6 @@ function closeWindow() {
 }
 
 onMounted(() => {
-    void launcherStore.loadLauncherVersion();
-    void settingsStore.loadSettings();
-    void gameStore.loadInstallPath();
-    void gameStore.loadPatchVersionInfo();
-    void authStore.loadSession();
-    void checkMandatoryLauncherUpdate();
-
     unsubscribeInstallerProgress = gameStore.subscribeInstallerProgress();
 
     unsubscribeLauncherUpdateProgress = window.app.onLauncherUpdateProgress((progress) => {
@@ -259,11 +332,18 @@ onMounted(() => {
             };
         }
     });
+
+    unsubscribeTrayStartGame = window.app.onTrayStartGame(() => {
+        void startGameFlow({ revealOnBlocked: true });
+    });
+
+    void bootstrapLauncher();
 });
 
 onUnmounted(() => {
     unsubscribeInstallerProgress?.();
     unsubscribeLauncherUpdateProgress?.();
+    unsubscribeTrayStartGame?.();
 });
 </script>
 

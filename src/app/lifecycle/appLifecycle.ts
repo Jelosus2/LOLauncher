@@ -59,4 +59,5 @@ function showMainWindow() {
 
     window.show();
     app.focus({ steal: true });
+    window.focus();
 }

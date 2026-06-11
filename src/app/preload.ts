@@ -55,6 +55,18 @@ const launcherApi: LauncherApi = {
             ipcRenderer.removeListener("launcher-update:progress", listener);
         };
     },
+    onTrayStartGame: (callback) => {
+        const listener = () => {
+            callback();
+        };
+
+        ipcRenderer.on("tray:start-game", listener);
+
+        return () => {
+            ipcRenderer.removeListener("tray:start-game", listener);
+        };
+    },
+    showWindow: () => ipcRenderer.invoke("window:show"),
     minimizeWindow: () => ipcRenderer.invoke("window:minimize"),
     closeWindow: () => ipcRenderer.invoke("window:close")
 } as const;

@@ -270,6 +270,18 @@ function updateOtpCode(event: Event) {
                     Start launcher on system startup
                 </label>
 
+                <label class="check-row">
+                    <input
+                        type="checkbox"
+                        :checked="settingsStore.settings.startGameOnLauncherOpen"
+                        @change="settingsStore.updateSetting(
+                            'startGameOnLauncherOpen',
+                            ($event.target as HTMLInputElement).checked
+                        )"
+                    />
+                    Start game upon opening launcher
+                </label>
+
                 <fieldset class="settings-group">
                     <legend>Close settings</legend>
 

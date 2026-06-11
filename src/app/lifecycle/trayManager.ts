@@ -12,6 +12,19 @@ export function shouldQuitApp() {
     return isQuitting;
 }
 
+function showLauncherWindow(mainWindow: BrowserWindow) {
+    if (mainWindow.isMinimized())
+        mainWindow.restore();
+
+    mainWindow.show();
+    app.focus({ steal: true });
+    mainWindow.focus();
+}
+
+function requestStartGame(mainWindow: BrowserWindow) {
+    mainWindow.webContents.send("tray:start-game");
+}
+
 export function createOrShowTray(mainWindow: BrowserWindow) {
     if (tray) return tray;
 
@@ -22,8 +35,13 @@ export function createOrShowTray(mainWindow: BrowserWindow) {
         {
             label: "Show launcher",
             click: () => {
-                mainWindow.show();
-                mainWindow.focus();
+                showLauncherWindow(mainWindow);
+            }
+        },
+        {
+            label: "Start Game",
+            click: () => {
+                requestStartGame(mainWindow);
             }
         },
         {
@@ -39,8 +57,7 @@ export function createOrShowTray(mainWindow: BrowserWindow) {
     ]));
 
     tray.on("double-click", () => {
-        mainWindow.show();
-        mainWindow.focus();
+        showLauncherWindow(mainWindow);
     });
 
     return tray;

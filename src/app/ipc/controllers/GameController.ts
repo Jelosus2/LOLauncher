@@ -119,6 +119,7 @@ export class GameController {
             if (didLauncherHide && mainWindow && !mainWindow.isDestroyed()) {
                 mainWindow.show();
                 app.focus({ steal: true });
+                mainWindow.focus();
             }
         }
     }
