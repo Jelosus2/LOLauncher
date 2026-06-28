@@ -63,14 +63,14 @@ export async function getGameVersionInfo(): Promise<GameVersionInfo> {
 }
 
 export async function isGameProcessRunning() {
-    const processName = await getGameProcessName();
+    const { fileName, processName } = await getGameProcessName();
 
-    if (!processName) {
+    if (!fileName || !processName)
         return false;
-    }
 
     const processes = await findProcess("name", processName) as FindProcessResult[];
-    return processes.length > 0;
+
+    return processes.find((proc) => proc.name === fileName) !== undefined;
 }
 
 export async function assertGameIsNotRunning() {
@@ -259,9 +259,11 @@ async function getRunningGameProcessId() {
 async function getGameProcessName() {
     const fileName = await getRegistryGameFileName();
     if (!fileName)
-        return null;
+        return { fileName: null, processName: null };
 
-    return path.basename(fileName).replace(/\.exe$/i, "");
+    const processName = path.basename(fileName).replace(/\.exe$/i, "");
+
+    return { fileName, processName };
 }
 
 async function readGameVersion(installPath: string) {
