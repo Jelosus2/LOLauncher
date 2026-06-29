@@ -248,12 +248,15 @@ async function waitForGameProcessStart() {
 }
 
 async function getRunningGameProcessId() {
-    const processName = await getGameProcessName();
-    if (!processName)
+    const { fileName, processName } = await getGameProcessName();
+
+    if (!fileName || !processName)
         return null;
 
     const processes = await findProcess("name", processName) as FindProcessResult[];
-    return processes[0]?.pid ?? null;
+    const gameProcess = processes.find((proc) => proc.name === fileName);
+
+    return gameProcess?.pid ?? null;
 }
 
 async function getGameProcessName() {
