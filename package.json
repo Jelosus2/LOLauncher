@@ -1,7 +1,7 @@
 {
   "name": "lo-launcher",
   "private": true,
-  "version": "1.0.3",
+  "version": "1.0.4",
   "type": "module",
   "description": "Launcher for the game Last Origin R+",
   "main": "dist/app/index.js",
@@ -42,11 +42,5 @@
   "keywords": [],
   "author": "",
   "license": "MIT",
-  "packageManager": "pnpm@10.33.4",
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "electron",
-      "electron-winstaller"
-    ]
-  }
+  "packageManager": "pnpm@10.33.4"
 }

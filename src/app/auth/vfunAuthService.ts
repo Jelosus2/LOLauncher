@@ -13,6 +13,7 @@ import type {
 
 import { saveAuthSession, setMemoryAuthSession, toPublicAuthSession } from "./authStorageService.js";
 import { getAppIconPath } from "../shared/assets.js";
+import { networkInterfaces } from "node:os";
 import { BrowserWindow } from "electron";
 import { exec } from "node:child_process";
 import crypto from "node:crypto";
@@ -599,14 +600,45 @@ function getHardwareMac() {
     return new Promise<string | null>((resolve) => {
         const cmd = `powershell -Command "Get-CimInstance Win32_NetworkAdapter | Where-Object { $_.PhysicalAdapter -eq $true -and $_.AdapterType -like '*Ethernet*' } | Select-Object -ExpandProperty MACAddress"`;
         exec(cmd, (error, stdout) => {
-            if (error || !stdout.trim()) {
-                resolve(null);
-                return;
+            if (!error) {
+                const deviceId = stdout
+                    .split(/\r?\n/)
+                    .map(normalizeMacAddress)
+                    .find((mac): mac is string => mac !== null);
+
+                if (deviceId) {
+                    resolve(deviceId);
+                    return;
+                }
             }
 
-            const rawMac = stdout.trim().split('\n')[0].trim();
-            const formattedMac = rawMac.toUpperCase().replace(/[:.]/g, '-');
-            resolve(formattedMac);
+            resolve(getNetworkInterfaceMac());
         });
     });
+}
+
+function getNetworkInterfaceMac(): string | null {
+    const candidates = Object.values(networkInterfaces())
+        .flatMap((addresses) => addresses ?? [])
+        .filter((address) => !address.internal)
+        .map((address) => ({
+            mac: normalizeMacAddress(address.mac),
+            isIpv4: address.family === "IPv4"
+        }))
+        .filter((candidate): candidate is { mac: string; isIpv4: boolean } => candidate.mac !== null)
+        .sort((left, right) => Number(right.isIpv4) - Number(left.isIpv4));
+
+    return candidates[0]?.mac ?? null;
+}
+
+function normalizeMacAddress(value: string): string | null {
+    const compact = value
+        .trim()
+        .replace(/[:-]/g, "")
+        .toUpperCase();
+
+    if (!/^[0-9A-F]{12}$/.test(compact) || compact === "000000000000")
+        return null;
+
+    return compact.match(/.{2}/g)!.join("-");
 }
