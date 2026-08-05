@@ -1,20 +1,31 @@
+import type { MainWindowOptions } from "../windows/mainWindow.js";
+
+import { captureProtocolLaunchGameRequest, dispatchProtocolLaunchGameRequest, registerLauncherProtocol } from "./protocolManager.js";
 import { getSettings } from "../config/settingsService.js";
 import { applyStartupSetting } from "./startupService.js";
 import { markAppAsQuitting } from "./trayManager.js";
 import { app, BrowserWindow, Menu } from "electron";
 
-export type WindowFactory = () => Promise<BrowserWindow>;
+export type WindowFactory = (options?: MainWindowOptions) => Promise<BrowserWindow>;
 
 let mainWindow: BrowserWindow | null = null;
 
 export function registerAppLifecycle(createMainWindow: WindowFactory) {
+    registerLauncherProtocol();
+    const openedWithProtocolLaunchGame = captureProtocolLaunchGameRequest();
+
     const hasSingleInstanceLock = app.requestSingleInstanceLock();
     if (!hasSingleInstanceLock) {
         app.quit();
         return;
     }
 
-    app.on("second-instance", () => {
+    app.on("second-instance", (_event, argv) => {
+        if (captureProtocolLaunchGameRequest(argv)) {
+            dispatchProtocolLaunchGameRequest(mainWindow);
+            return;
+        }
+
         showMainWindow();
     });
 
@@ -25,7 +36,9 @@ export function registerAppLifecycle(createMainWindow: WindowFactory) {
         const settings = await getSettings();
         applyStartupSetting(settings.startOnSystemStartup);
 
-        mainWindow = await createMainWindow();
+        mainWindow = await createMainWindow({
+            showOnReady: !openedWithProtocolLaunchGame
+        });
 
         app.on("activate", async () => {
             if (BrowserWindow.getAllWindows().length === 0) {

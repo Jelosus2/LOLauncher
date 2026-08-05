@@ -4,7 +4,8 @@ import type { PatchVersionInfo, PatchApplyResult } from "./patch.js";
 import type { LauncherTaskProgress } from "./installer.js";
 import type { MaintenanceStatus } from "./maintenance.js";
 import type { LauncherSettings } from "./settings.js";
-import type { GameVersionInfo } from "./game.js";
+import type { GameLaunchRequest, GameLaunchResult, GameVersionInfo } from "./game.js";
+import type { ProtocolLaunchGameRequest, ProtocolLaunchResult } from "./protocol.js";
 import type { LogPayload } from "./logging.js";
 import type { GameNewsItem } from "./news.js";
 
@@ -40,11 +41,14 @@ export type LauncherApi = {
     verifyVfunOtp: (request: VfunOtpVerifyRequest) => Promise<AuthSession>;
     getAuthSession: () => Promise<AuthSession | null>;
     logout: () => Promise<void>;
-    launchGame: () => Promise<void>;
+    launchGame: (request?: GameLaunchRequest) => Promise<GameLaunchResult>;
     checkLauncherUpdate: () => Promise<LauncherUpdateCheckResult>;
     startLauncherUpdate: (mandatory: boolean) => Promise<void>;
     onLauncherUpdateProgress: (callback: (progress: LauncherUpdateProgress) => void) => () => void;
     onTrayStartGame: (callback: () => void) => () => void;
+    onProtocolLaunchGame: (callback: (request: ProtocolLaunchGameRequest | null) => void) => () => void;
+    consumeProtocolLaunchGameRequest: () => Promise<ProtocolLaunchGameRequest | null>;
+    reportProtocolLaunchResult: (request: ProtocolLaunchGameRequest | undefined, result: ProtocolLaunchResult) => Promise<void>;
     showWindow: () => Promise<void>;
     minimizeWindow: () => Promise<void>;
     closeWindow: () => Promise<void>;

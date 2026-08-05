@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { LauncherUpdateProgress } from "../shared/launcherUpdate.ts";
+import type { ProtocolLaunchFailureReason, ProtocolLaunchGameRequest } from "../shared/protocol.ts";
 
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import ServiceStatusDialog from "./components/ServiceStatusDialog.vue";
@@ -17,6 +18,8 @@ type ModalKind = "settings" | "login" | null;
 type StartGameFlowOptions = {
     precheckedStatus?: Awaited<ReturnType<typeof gameStore.checkMaintenance>>;
     revealOnBlocked?: boolean;
+    quitAfterStart?: boolean;
+    protocolRequest?: ProtocolLaunchGameRequest | null;
 };
 
 const activeModal = ref<ModalKind>(null);
@@ -39,6 +42,7 @@ const authStore = useAuthStore();
 let unsubscribeInstallerProgress: (() => void) | undefined;
 let unsubscribeLauncherUpdateProgress: (() => void) | undefined;
 let unsubscribeTrayStartGame: (() => void) | undefined;
+let unsubscribeProtocolLaunchGame: (() => void) | undefined;
 let pendingLoginResolve: ((success: boolean) => void) | undefined;
 let didHandleStartupGameLaunch = false;
 
@@ -119,8 +123,15 @@ async function startGameFlow(options: StartGameFlowOptions = {}) {
     if (gameStore.isRunningTask || gameStore.isLaunchingGame)
         return;
 
+    if (launcherUpdateOverlay.value?.mandatory) {
+        await revealLauncherIfNeeded(options);
+        await reportProtocolLaunchFailure(options, "launcher_update_required");
+        return;
+    }
+
     if (launcherState.value === "install") {
         await revealLauncherIfNeeded(options);
+        await reportProtocolLaunchFailure(options, "game_not_installed");
 
         serviceDialog.value = {
             title: "Game Not Installed",
@@ -131,6 +142,7 @@ async function startGameFlow(options: StartGameFlowOptions = {}) {
 
     if (launcherState.value === "update") {
         await revealLauncherIfNeeded(options);
+        await reportProtocolLaunchFailure(options, "game_update_required");
 
         serviceDialog.value = {
             title: "Game Update Required",
@@ -139,10 +151,18 @@ async function startGameFlow(options: StartGameFlowOptions = {}) {
         return;
     }
 
-    const status = options.precheckedStatus ?? await gameStore.checkMaintenance();
+    let status: Awaited<ReturnType<typeof gameStore.checkMaintenance>>;
+    try {
+        status = options.precheckedStatus ?? await gameStore.checkMaintenance();
+    } catch {
+        await revealLauncherIfNeeded(options);
+        await reportProtocolLaunchFailure(options, "launch_failed");
+        return;
+    }
 
     if (status.isRestrictedCountry) {
         await revealLauncherIfNeeded(options);
+        await reportProtocolLaunchFailure(options, "service_unavailable");
 
         serviceDialog.value = {
             title: "Service Unavailable",
@@ -153,6 +173,7 @@ async function startGameFlow(options: StartGameFlowOptions = {}) {
 
     if (status.isMaintenance) {
         await revealLauncherIfNeeded(options);
+        await reportProtocolLaunchFailure(options, "maintenance");
 
         serviceDialog.value = {
             title: "Game Under Maintenance",
@@ -165,22 +186,47 @@ async function startGameFlow(options: StartGameFlowOptions = {}) {
         await revealLauncherIfNeeded(options);
 
     const isLoggedIn = await waitForLogin();
-    if (!isLoggedIn)
+    if (!isLoggedIn) {
+        await reportProtocolLaunchFailure(options, "login_canceled");
         return;
+    }
 
     await ensureGameIsNotRunning(() => {
-        const launch = gameStore.launchGame();
+        const launch = gameStore.launchGame({
+            quitAfterStart: options.quitAfterStart,
+            protocolRequest: options.protocolRequest ?? undefined
+        });
 
         if (options.revealOnBlocked)
-            void launch.catch(() => window.app.showWindow());
+            void launch
+                .then((result) => {
+                    if (!result.started) {
+                        void reportProtocolLaunchFailure(options, "launch_canceled");
+                        return window.app.showWindow();
+                    }
+                })
+                .catch(() => {
+                    void reportProtocolLaunchFailure(options, "launch_failed");
+                    return window.app.showWindow();
+                });
         else
             void launch;
-    }, options.revealOnBlocked);
+    }, options.revealOnBlocked, options.protocolRequest);
 }
 
 async function revealLauncherIfNeeded(options: StartGameFlowOptions) {
     if (options.revealOnBlocked)
         await window.app.showWindow();
+}
+
+async function reportProtocolLaunchFailure(options: StartGameFlowOptions, reason: ProtocolLaunchFailureReason) {
+    if (!options.protocolRequest)
+        return;
+
+    await window.app.reportProtocolLaunchResult(options.protocolRequest, {
+        status: "failed",
+        reason
+    });
 }
 
 async function handleRepairGame() {
@@ -211,7 +257,7 @@ async function handleUninstallGame() {
     });
 }
 
-async function ensureGameIsNotRunning(nextAction: () => void, revealOnBlocked = false) {
+async function ensureGameIsNotRunning(nextAction: () => void, revealOnBlocked = false, protocolRequest?: ProtocolLaunchGameRequest | null) {
     const isGameRunning = await gameStore.isGameProcessRunning();
 
     if (!isGameRunning) {
@@ -221,6 +267,13 @@ async function ensureGameIsNotRunning(nextAction: () => void, revealOnBlocked = 
 
     if (revealOnBlocked)
         await window.app.showWindow();
+
+    if (protocolRequest) {
+        await window.app.reportProtocolLaunchResult(protocolRequest, {
+            status: "failed",
+            reason: "game_already_running"
+        });
+    }
 
     serviceDialog.value = {
         title: "Game Is Running",
@@ -297,6 +350,18 @@ async function bootstrapLauncher() {
     ]);
 
     await checkMandatoryLauncherUpdate();
+
+    const protocolRequest = await window.app.consumeProtocolLaunchGameRequest();
+    if (protocolRequest) {
+        didHandleStartupGameLaunch = true;
+        await startGameFlow({
+            revealOnBlocked: true,
+            quitAfterStart: true,
+            protocolRequest
+        });
+        return;
+    }
+
     await startGameOnLauncherOpen();
 }
 
@@ -337,6 +402,14 @@ onMounted(() => {
         void startGameFlow({ revealOnBlocked: true });
     });
 
+    unsubscribeProtocolLaunchGame = window.app.onProtocolLaunchGame((protocolRequest) => {
+        void startGameFlow({
+            revealOnBlocked: true,
+            quitAfterStart: true,
+            protocolRequest
+        });
+    });
+
     void bootstrapLauncher();
 });
 
@@ -344,6 +417,7 @@ onUnmounted(() => {
     unsubscribeInstallerProgress?.();
     unsubscribeLauncherUpdateProgress?.();
     unsubscribeTrayStartGame?.();
+    unsubscribeProtocolLaunchGame?.();
 });
 </script>
 

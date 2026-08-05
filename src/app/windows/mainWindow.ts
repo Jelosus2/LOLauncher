@@ -7,7 +7,11 @@ import { getSettings } from "../config/settingsService.js";
 import { getAppIconPath } from "../shared/assets.js";
 import { appConfig } from "../config/appConfig.js";
 
-export async function createMainWindow() {
+export type MainWindowOptions = {
+    showOnReady?: boolean;
+};
+
+export async function createMainWindow(options: MainWindowOptions = {}) {
     const mainWindow = new BrowserWindow({
         title: appConfig.appName,
         icon: getAppIconPath(),
@@ -35,7 +39,8 @@ export async function createMainWindow() {
     }
 
     mainWindow.once("ready-to-show", () => {
-        mainWindow.show();
+        if (options.showOnReady ?? true)
+            mainWindow.show();
     });
 
     mainWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));

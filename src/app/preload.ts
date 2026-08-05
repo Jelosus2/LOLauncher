@@ -41,7 +41,7 @@ const launcherApi: LauncherApi = {
     verifyVfunOtp: (request) => ipcRenderer.invoke("auth:verify-vfun-otp", request),
     getAuthSession: () => ipcRenderer.invoke("auth:get-session"),
     logout: () => ipcRenderer.invoke("auth:logout"),
-    launchGame: () => ipcRenderer.invoke("game:launch"),
+    launchGame: (request) => ipcRenderer.invoke("game:launch", request),
     checkLauncherUpdate: () => ipcRenderer.invoke("launcher:check-update"),
     startLauncherUpdate: (mandatory) => ipcRenderer.invoke("launcher:start-update", mandatory),
     onLauncherUpdateProgress: (callback) => {
@@ -66,6 +66,19 @@ const launcherApi: LauncherApi = {
             ipcRenderer.removeListener("tray:start-game", listener);
         };
     },
+    onProtocolLaunchGame: (callback) => {
+        const listener = (_event: Electron.IpcRendererEvent, request: unknown) => {
+            callback(request as Parameters<typeof callback>[0]);
+        };
+
+        ipcRenderer.on("protocol:launch-game", listener);
+
+        return () => {
+            ipcRenderer.removeListener("protocol:launch-game", listener);
+        };
+    },
+    consumeProtocolLaunchGameRequest: () => ipcRenderer.invoke("protocol:consume-launch-game-request"),
+    reportProtocolLaunchResult: (request, result) => ipcRenderer.invoke("protocol:report-launch-result", request, result),
     showWindow: () => ipcRenderer.invoke("window:show"),
     minimizeWindow: () => ipcRenderer.invoke("window:minimize"),
     closeWindow: () => ipcRenderer.invoke("window:close")

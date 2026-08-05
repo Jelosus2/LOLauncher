@@ -1,10 +1,13 @@
+import type { GameLaunchRequest, GameLaunchResult } from "../../../shared/game.js";
+
 import { getGameInstallPath, getGameVersionInfo, isGameProcessRunning, assertGameIsNotRunning, runGameUninstaller, launchGame, GameLaunchCanceledError } from "../../game/gameService.js";
 import { checkMaintenanceStatus, assertCanInstallOrPatch, assertCanLaunchGame } from "../../game/maintenanceService.js";
 import { getPatchVersionInfo, applyLatestPatch, repairGameFiles } from "../../game/patchService.js";
 import { patchTaskController, PatchTaskCanceledError } from "../../game/patchTaskController.js";
 import { downloadGameInstaller, runInstaller } from "../../game/installerService.js";
 import { BrowserWindow, app, shell, type IpcMainInvokeEvent } from "electron";
-import { createOrShowTray } from "../../lifecycle/trayManager.js";
+import { createOrShowTray, markAppAsQuitting } from "../../lifecycle/trayManager.js";
+import { reportProtocolLaunchResult } from "../../lifecycle/protocolManager.js";
 import { getSettings } from "../../config/settingsService.js";
 import { IpcHandle } from "../ipcDecorators.js";
 
@@ -92,7 +95,7 @@ export class GameController {
     }
 
     @IpcHandle("game:launch")
-    async launchGameProcess(event: IpcMainInvokeEvent) {
+    async launchGameProcess(event: IpcMainInvokeEvent, request: GameLaunchRequest = {}): Promise<GameLaunchResult> {
         await assertCanLaunchGame();
         await assertGameIsNotRunning();
 
@@ -102,17 +105,35 @@ export class GameController {
 
         try {
             await launchGame({
-                onStarted: () => {
+                onStarted: async () => {
+                    await reportProtocolLaunchResult(request.protocolRequest, {
+                        status: "started"
+                    });
+
+                    if (request.quitAfterStart) {
+                        markAppAsQuitting();
+                        app.quit();
+                        return;
+                    }
+
                     if (settings.closeAfterGameStarts && mainWindow && !mainWindow.isDestroyed()) {
                         createOrShowTray(mainWindow);
-                        mainWindow.hide();
-                        didLauncherHide = true;
+
+                        if (mainWindow.isVisible()) {
+                            mainWindow.hide();
+                            didLauncherHide = true;
+                        }
                     }
                 }
             });
+
+            return { started: true };
         } catch (error) {
             if (error instanceof GameLaunchCanceledError)
-                return;
+                return {
+                    started: false,
+                    canceled: true
+                };
 
             throw error;
         } finally {

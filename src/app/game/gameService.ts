@@ -19,7 +19,7 @@ type FindProcessResult = {
 };
 
 export type LaunchGameOptions = {
-    onStarted?: () => void;
+    onStarted?: () => void | Promise<void>;
 };
 
 export class GameLaunchCanceledError extends Error {
@@ -215,7 +215,7 @@ async function getGameExecutablePath() {
 
 async function waitForGameProcessLifecycle(options: LaunchGameOptions) {
     await waitForGameProcessStart();
-    options.onStarted?.();
+    await options.onStarted?.();
 
     await waitForGameProcessExit();
 }

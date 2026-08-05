@@ -1,6 +1,6 @@
 import type { LauncherTaskProgress } from "../../shared/installer";
 import type { PatchVersionInfo } from "../../shared/patch";
-import type { GameVersionInfo } from "../../shared/game";
+import type { GameLaunchRequest, GameVersionInfo } from "../../shared/game";
 
 import { isStorageError, getCleanErrorMessage } from "@/utils/errors";
 import { reportError } from "@/services/errorReporter";
@@ -281,11 +281,11 @@ export const useGameStore = defineStore("game", () => {
         }
     }
 
-    async function launchGame() {
+    async function launchGame(request: GameLaunchRequest = {}) {
         isLaunchingGame.value = true;
 
         try {
-            await window.app.launchGame();
+            return await window.app.launchGame(request);
         } catch (error) {
             taskProgress.value = {
                 step: "failed",
